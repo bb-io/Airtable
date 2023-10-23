@@ -10,8 +10,8 @@ public class ConnectionValidator : IConnectionValidator
         IEnumerable<AuthenticationCredentialsProvider> authenticationCredentialsProviders,
         CancellationToken cancellationToken)
     {
-        var client = new AirtableClient();
-        var request = new AirtableRequest("/meta/whoami", Method.Get, authenticationCredentialsProviders);
+        var client = new AirtableMetaClient(authenticationCredentialsProviders);
+        var request = new AirtableRequest("/tables", Method.Get, authenticationCredentialsProviders);
         
         try
         {
@@ -27,7 +27,7 @@ public class ConnectionValidator : IConnectionValidator
             return new ConnectionValidationResponse
             {
                 IsValid = false,
-                Message = "Ping failed"
+                Message = "Please enter correct Base ID value."
             };
         }
     }

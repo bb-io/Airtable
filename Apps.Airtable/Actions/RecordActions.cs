@@ -4,19 +4,25 @@ using Apps.Airtable.Models.Requests;
 using RestSharp;
 using Apps.Airtable.Models.Responses;
 using Blackbird.Applications.Sdk.Common.Actions;
+using Blackbird.Applications.Sdk.Common.Invocation;
 
 namespace Apps.Airtable.Actions;
 
 [ActionList]
-public class RecordActions
+public class RecordActions : BaseInvocable
 {
-    [Action("List all records", Description = "List all records")]
-    public ListRecordsResponse ListRecords(IEnumerable<AuthenticationCredentialsProvider> authenticationCredentialsProviders, 
-        [ActionParameter] ListRecordsRequest input)
+    private readonly IEnumerable<AuthenticationCredentialsProvider> _credentials;
+
+    public RecordActions(InvocationContext invocationContext) : base(invocationContext)
     {
-        var client = new AirtableClient();
-        var request = new AirtableRequest($"/{input.BaseId}/{input.TableId}",
-            Method.Get, authenticationCredentialsProviders);
+        _credentials = invocationContext.AuthenticationCredentialsProviders;
+    }
+    
+    [Action("List all records", Description = "List all records")]
+    public ListRecordsResponse ListRecords([ActionParameter] ListRecordsRequest input)
+    {
+        var client = new AirtableContentClient(_credentials);
+        var request = new AirtableRequest($"/{input.BaseId}/{input.TableId}", Method.Get, _credentials);
         return client.Get<ListRecordsResponse>(request);
     }
 }

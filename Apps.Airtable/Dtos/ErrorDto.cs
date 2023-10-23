@@ -1,12 +1,17 @@
 ﻿namespace Apps.Airtable.Dtos;
 
-public class ErrorDto
+public class ErrorObjectDto
 {
     public string Type { get; set; }
     public string Message { get; set; }
 }
 
-public class ErrorDtoWrapper
+public class ErrorStringDto
 {
-    public ErrorDto Error { get; set; }
+    public string Error { get; set; }
+}
+
+public class ErrorObjectDtoWrapper
+{
+    public ErrorObjectDto Error { get; set; }
 }
