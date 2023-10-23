@@ -1,17 +1,18 @@
-﻿using Blackbird.Applications.Sdk.Common.Authentication;
+﻿using Apps.Airtable.Dtos;
+using Blackbird.Applications.Sdk.Utils.RestSharp;
+using Newtonsoft.Json;
 using RestSharp;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace Apps.Airtable
+namespace Apps.Airtable;
+
+public class AirtableClient : BlackBirdRestClient
 {
-    public class AirtableClient : RestClient
-    {
-        public AirtableClient(IEnumerable<AuthenticationCredentialsProvider> authenticationCredentialsProviders) : 
-            base(new RestClientOptions() { ThrowOnAnyError = true, BaseUrl = new Uri("https://api.airtable.com") }) { }
+    public AirtableClient() : base(new()
+        { ThrowOnAnyError = false, BaseUrl = new Uri("https://api.airtable.com/v0") }) { }
 
+    protected override Exception ConfigureErrorException(RestResponse response)
+    {
+        var error = JsonConvert.DeserializeObject<ErrorDtoWrapper>(response.Content);
+        return new(error.Error.Message);
     }
 }
