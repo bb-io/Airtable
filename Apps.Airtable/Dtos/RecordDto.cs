@@ -10,3 +10,8 @@ public class RecordDto
     [Display("Record ID")]
     public string Id { get; set; }
 }
+
+public class FullRecordDto : RecordDto
+{
+    public Dictionary<string, object> Fields { get; set; }
+}
