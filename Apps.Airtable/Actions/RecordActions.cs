@@ -1,5 +1,7 @@
-﻿using Apps.Airtable.Dtos;
+﻿using System.Text;
+using Apps.Airtable.Dtos;
 using Apps.Airtable.Models.Identifiers;
+using Apps.Airtable.Models.Requests;
 using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Authentication;
 using RestSharp;
@@ -16,6 +18,9 @@ public class RecordActions : BaseInvocable
 {
     private readonly IEnumerable<AuthenticationCredentialsProvider> _credentials;
     private readonly AirtableContentClient _client;
+
+    private readonly JsonSerializerSettings _jsonSerializerSettings =
+        new() { MissingMemberHandling = MissingMemberHandling.Ignore };
 
     public RecordActions(InvocationContext invocationContext) : base(invocationContext)
     {
@@ -72,7 +77,8 @@ public class RecordActions : BaseInvocable
         [ActionParameter] RecordIdentifier recordIdentifier, [ActionParameter] FieldIdentifier fieldIdentifier)
     {
         var field = await GetFieldValue(tableIdentifier, recordIdentifier, fieldIdentifier);
-        var files = JsonConvert.DeserializeObject<IEnumerable<FileDto>>(field.ToString());
+        var files = JsonConvert.DeserializeObject<IEnumerable<FileDto>>(field?.ToString() ?? string.Empty,
+            _jsonSerializerSettings) ?? new FileDto[] { };
         var downloadedFiles = new List<FileWrapper>();
         
         foreach (var file in files)
@@ -174,6 +180,37 @@ public class RecordActions : BaseInvocable
             }}
         }}";
         var record = await UpdateFieldValue(tableIdentifier, recordIdentifier, fieldIdentifier, jsonBody);
+        return record;
+    }
+    
+    [Action("Upload file to attachment field", Description = "Upload a file to an attachment field.")]
+    public async Task<RecordDto> UploadFileToAttachmentField([ActionParameter] TableIdentifier tableIdentifier, 
+        [ActionParameter] RecordIdentifier recordIdentifier, [ActionParameter] FieldIdentifier fieldIdentifier,
+        [ActionParameter] FileRequest file) 
+    {
+        var field = await GetFieldValue(tableIdentifier, recordIdentifier, fieldIdentifier);
+        var files = JsonConvert.DeserializeObject<IEnumerable<FileDto>>(field?.ToString() ?? string.Empty,
+            _jsonSerializerSettings) ?? new FileDto[] { };
+
+        var jsonBody = new StringBuilder();
+        jsonBody.AppendLine("{");
+        jsonBody.AppendLine("\"fields\": {");
+        jsonBody.AppendLine($"\"{fieldIdentifier.FieldName}\": [");
+
+        foreach (var fileDto in files)
+        {
+            jsonBody.AppendLine($"{{ \"id\": \"{fileDto.Id}\" }},");
+        }
+
+        jsonBody.AppendLine("{");
+        jsonBody.AppendLine($"\"url\": \"{file.File.DownloadUrl}\",");
+        jsonBody.AppendLine($"\"filename\": \"{file.File.Name}\"");
+        jsonBody.AppendLine("}");
+        jsonBody.AppendLine("]");
+        jsonBody.AppendLine("}");
+        jsonBody.AppendLine("}");
+        
+        var record = await UpdateFieldValue(tableIdentifier, recordIdentifier, fieldIdentifier, jsonBody.ToString());
         return record;
     }
 
