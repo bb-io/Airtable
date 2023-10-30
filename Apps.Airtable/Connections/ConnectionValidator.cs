@@ -1,4 +1,5 @@
-﻿using Blackbird.Applications.Sdk.Common.Authentication;
+﻿using Apps.Airtable.UrlBuilders;
+using Blackbird.Applications.Sdk.Common.Authentication;
 using Blackbird.Applications.Sdk.Common.Connections;
 using RestSharp;
 
@@ -10,7 +11,7 @@ public class ConnectionValidator : IConnectionValidator
         IEnumerable<AuthenticationCredentialsProvider> authenticationCredentialsProviders,
         CancellationToken cancellationToken)
     {
-        var client = new AirtableMetaClient(authenticationCredentialsProviders);
+        var client = new AirtableClient(authenticationCredentialsProviders, new AirtableMetaUrlBuilder());
         var request = new AirtableRequest("/tables", Method.Get, authenticationCredentialsProviders);
         
         try

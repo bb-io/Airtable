@@ -1,14 +1,15 @@
 ﻿using Apps.Airtable.Auth.OAuth2;
 using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Authentication.OAuth2;
+using Blackbird.Applications.Sdk.Common.Invocation;
 
 namespace Apps.Airtable;
 
-public class AirtableApplication : IApplication
+public class AirtableApplication : BaseInvocable, IApplication
 {
     private readonly Dictionary<Type, object> _typesInstances;
 
-    public AirtableApplication()
+    public AirtableApplication(InvocationContext invocationContext) : base(invocationContext)
     {
         _typesInstances = CreateTypesInstances();
     }
@@ -32,8 +33,8 @@ public class AirtableApplication : IApplication
     {
         return new Dictionary<Type, object>
         {
-            { typeof(IOAuth2AuthorizeService), new OAuth2AuthorizeService() },
-            { typeof(IOAuth2TokenService), new OAuth2TokenService() }
+            { typeof(IOAuth2AuthorizeService), new OAuth2AuthorizeService(InvocationContext) },
+            { typeof(IOAuth2TokenService), new OAuth2TokenService(InvocationContext) }
         };
     }
 }
