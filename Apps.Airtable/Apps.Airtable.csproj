@@ -6,11 +6,17 @@
     <Nullable>enable</Nullable>
     <Product>Airtable</Product>
     <Version>1.0.0</Version>
+    <Description>Cloud-based platform that combines the simplicity of a spreadsheet with the complexity of a database, enabling users to organize and track data in a flexible and user-friendly way.</Description>
+    <AssemblyName>Apps.Airtable</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Blackbird.Applications.Sdk.Common" Version="2.2.0-alpha4" />
     <PackageReference Include="Blackbird.Applications.Sdk.Utils" Version="1.0.12" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource CopyToOutputDirectory="Always" Include="image\icon.png"></EmbeddedResource>
   </ItemGroup>
 
 </Project>
