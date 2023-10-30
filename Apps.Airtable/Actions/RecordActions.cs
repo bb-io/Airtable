@@ -8,7 +8,6 @@ using RestSharp;
 using Apps.Airtable.Models.Responses;
 using Apps.Airtable.UrlBuilders;
 using Blackbird.Applications.Sdk.Common.Actions;
-using Blackbird.Applications.Sdk.Common.Files;
 using Blackbird.Applications.Sdk.Common.Invocation;
 using Newtonsoft.Json;
 using File = Blackbird.Applications.Sdk.Common.Files.File;
@@ -185,7 +184,7 @@ public class RecordActions : BaseInvocable
         return record;
     }
     
-    [Action("Upload file to attachment field", Description = "Upload a file to an attachment field.")]
+    //[Action("Upload file to attachment field", Description = "Upload a file to an attachment field.")]
     public async Task<RecordDto> UploadFileToAttachmentField([ActionParameter] TableIdentifier tableIdentifier, 
         [ActionParameter] RecordIdentifier recordIdentifier, [ActionParameter] FieldIdentifier fieldIdentifier,
         [ActionParameter] FileRequest file)
