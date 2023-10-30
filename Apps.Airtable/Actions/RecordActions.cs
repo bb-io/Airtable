@@ -6,6 +6,7 @@ using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Authentication;
 using RestSharp;
 using Apps.Airtable.Models.Responses;
+using Apps.Airtable.UrlBuilders;
 using Blackbird.Applications.Sdk.Common.Actions;
 using Blackbird.Applications.Sdk.Common.Invocation;
 using Newtonsoft.Json;
@@ -17,7 +18,7 @@ namespace Apps.Airtable.Actions;
 public class RecordActions : BaseInvocable
 {
     private readonly IEnumerable<AuthenticationCredentialsProvider> _credentials;
-    private readonly AirtableContentClient _client;
+    private readonly AirtableClient _client;
 
     private readonly JsonSerializerSettings _jsonSerializerSettings =
         new() { MissingMemberHandling = MissingMemberHandling.Ignore };
@@ -25,7 +26,7 @@ public class RecordActions : BaseInvocable
     public RecordActions(InvocationContext invocationContext) : base(invocationContext)
     {
         _credentials = invocationContext.AuthenticationCredentialsProviders;
-        _client = new AirtableContentClient(_credentials);
+        _client = new AirtableClient(_credentials, new AirtableContentUrlBuilder());
     }
 
     #region GET
@@ -183,10 +184,10 @@ public class RecordActions : BaseInvocable
         return record;
     }
     
-    [Action("Upload file to attachment field", Description = "Upload a file to an attachment field.")]
+    //[Action("Upload file to attachment field", Description = "Upload a file to an attachment field.")]
     public async Task<RecordDto> UploadFileToAttachmentField([ActionParameter] TableIdentifier tableIdentifier, 
         [ActionParameter] RecordIdentifier recordIdentifier, [ActionParameter] FieldIdentifier fieldIdentifier,
-        [ActionParameter] FileRequest file) 
+        [ActionParameter] FileRequest file)
     {
         var field = await GetFieldValue(tableIdentifier, recordIdentifier, fieldIdentifier);
         var files = JsonConvert.DeserializeObject<IEnumerable<FileDto>>(field?.ToString() ?? string.Empty,
@@ -237,7 +238,7 @@ public class RecordActions : BaseInvocable
     
     private async Task CheckIfFieldExistsInTable(TableIdentifier tableIdentifier, FieldIdentifier fieldIdentifier)
     {
-        var client = new AirtableMetaClient(_credentials);
+        var client = new AirtableClient(_credentials, new AirtableMetaUrlBuilder());
         var request = new AirtableRequest("/tables", Method.Get, _credentials);
         var tables = await client.ExecuteWithErrorHandling<TableDtoWrapper<FullTableDto>>(request);
         var table = tables.Tables.First(table =>

@@ -1,12 +1,18 @@
 ﻿using Blackbird.Applications.Sdk.Common.Authentication.OAuth2;
 using System.Text.Json;
+using Blackbird.Applications.Sdk.Common;
+using Blackbird.Applications.Sdk.Common.Invocation;
 
 namespace Apps.Airtable.Auth.OAuth2;
 
-public class OAuth2TokenService : IOAuth2TokenService
+public class OAuth2TokenService : BaseInvocable, IOAuth2TokenService
 {
     const string TokenUrl = "https://airtable.com/oauth2/v1/token";
     const string ExpiresAtKeyName = "expires_at";
+
+    public OAuth2TokenService(InvocationContext invocationContext) : base(invocationContext)
+    {
+    }
 
     public bool IsRefreshToken(Dictionary<string, string> values)
         => values.TryGetValue(ExpiresAtKeyName, out var expireValue) && DateTime.UtcNow > DateTime.Parse(expireValue);
@@ -32,7 +38,7 @@ public class OAuth2TokenService : IOAuth2TokenService
         {
             { "client_id", ApplicationConstants.ClientId },
             { "grant_type", grantType },
-            { "redirect_uri", ApplicationConstants.RedirectUri },
+            { "redirect_uri", $"{InvocationContext.UriInfo.BridgeServiceUrl.ToString().TrimEnd('/')}/AuthorizationCode" },
             { "code_verifier", ApplicationConstants.CodeVerifier },
             { "code", code }
         };
