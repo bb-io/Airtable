@@ -2,11 +2,7 @@
 
 public class WebhookPayload
 {
-    public WebhookIdWrapper Webhook { get; set; }
-}
-
-public class WebhookIdWrapper
-{
-    public string Id { get; set; }
+    public string WebhookId { get; set; }
+    public string Cursor { get; set; }
 }
 
