@@ -99,6 +99,5 @@ public class WebhookList : BaseInvocable
             if (int.Parse(storedCursor ?? "0") < int.Parse(cursor))
                 bridgeService.StoreValue(webhookId, cursor).Wait();
         }
-        
     } 
 }
