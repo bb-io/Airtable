@@ -94,7 +94,7 @@ public class BaseWebhookHandler : BaseInvocable, IWebhookEventHandler, IAsyncRen
         var getWebhooksRequest = new AirtableRequest("", Method.Get, authenticationCredentialsProviders);
         var webhooks = await _client.ExecuteWithErrorHandling<WebhookDtoWrapper>(getWebhooksRequest);
         var webhook = webhooks.Webhooks.FirstOrDefault(webhook => webhook.NotificationUrl == _bridgePayloadUrl 
-                                                                  && webhook.Specification.Options.Filters.ChangeTypes.Contains(_dataType) 
+                                                                  && webhook.Specification.Options.Filters.ChangeTypes.Contains(_subscriptionEvent) 
                                                                   && webhook.Specification.Options.Filters.DataTypes.Contains(_dataType));
         return webhook;
     }
