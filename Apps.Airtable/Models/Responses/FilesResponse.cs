@@ -1,4 +1,5 @@
-﻿using File = Blackbird.Applications.Sdk.Common.Files.File;
+﻿
+using Blackbird.Applications.Sdk.Common.Files;
 
 namespace Apps.Airtable.Models.Responses;
 
@@ -9,5 +10,5 @@ public class FilesResponse
 
 public class FileWrapper
 {
-    public File File { get; set; }
+    public FileReference File { get; set; }
 }
