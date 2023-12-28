@@ -1,17 +1,18 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net7.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <Product>Airtable</Product>
-    <Version>1.1.1</Version>
+    <Version>1.1.2</Version>
     <Description>Cloud-based platform that combines the simplicity of a spreadsheet with the complexity of a database, enabling users to organize and track data in a flexible and user-friendly way.</Description>
     <AssemblyName>Apps.Airtable</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Blackbird.Applications.Sdk.Common" Version="2.2.0-alpha4" />
+    <PackageReference Include="Blackbird.Applications.Sdk.Common" Version="2.3.2-alpha1" />
+    <PackageReference Include="Blackbird.Applications.SDK.Extensions.FileManagement" Version="1.0.0-alpha2" />
     <PackageReference Include="Blackbird.Applications.Sdk.Utils" Version="1.0.12" />
   </ItemGroup>
 
