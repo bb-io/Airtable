@@ -17,7 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource CopyToOutputDirectory="Always" Include="image\icon.png"></EmbeddedResource>
+    <EmbeddedResource CopyToOutputDirectory="Always" Include="image\icon.png"/>
   </ItemGroup>
 
 </Project>
