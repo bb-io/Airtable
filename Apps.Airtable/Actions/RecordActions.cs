@@ -88,11 +88,7 @@ public class RecordActions : BaseInvocable
         {
             downloadedFiles.Add(new FileWrapper
             {
-                File = new(new(HttpMethod.Get, file.Url))
-                {
-                    Name = file.Filename,
-                    ContentType = file.Type
-                }
+                File = new(new(HttpMethod.Get, file.Url), file.Filename, file.Type)
             });
         }
 
