@@ -8,5 +8,5 @@ public class RecordsResponse
     [Display("Table")]
     public string TableId { get; set; }
     
-    public IEnumerable<RecordDto> Records { get; set; }
+    public IEnumerable<RecordResponse> Records { get; set; }
 }

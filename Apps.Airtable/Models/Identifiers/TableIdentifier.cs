@@ -6,7 +6,7 @@ namespace Apps.Airtable.Models.Identifiers;
 
 public class TableIdentifier
 {
-    [Display("Table")] 
+    [Display("Table ID")] 
     [DataSource(typeof(TableDataSourceHandler))]
     public string TableId { get; set; }
 }

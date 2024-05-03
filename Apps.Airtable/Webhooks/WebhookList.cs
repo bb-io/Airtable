@@ -38,9 +38,9 @@ public class WebhookList : BaseInvocable
         var (changedTables, webhookId) = await ProcessWebhookRequest<ChangedTablesPayload>(request);
 
         if (!changedTables.Payloads.Any(p => p.ChangedTablesById != null && p.ChangedTablesById.ContainsKey(table.TableId)))
-            return new WebhookResponse<RecordsResponse>
+            return new()
             {
-                HttpResponseMessage = new HttpResponseMessage(HttpStatusCode.OK),
+                HttpResponseMessage = new(HttpStatusCode.OK),
                 ReceivedWebhookRequestType = WebhookRequestType.Preflight
             };
 
@@ -51,13 +51,13 @@ public class WebhookList : BaseInvocable
                 (changedTable[table.TableId].ToString(), _jsonSerializerSettings))
             .ToList();
         
-        var resultRecords = new List<RecordDto>();
+        var resultRecords = new List<RecordResponse>();
         
         foreach (var recordData in records.Select(record => record.CreatedRecordsById))
         {
             foreach (var recordId in recordData.Keys)
             {
-                resultRecords.Add(new RecordDto
+                resultRecords.Add(new()
                 {
                     Id = recordId,
                     CreatedTime = recordData[recordId].CreatedTime
@@ -67,10 +67,10 @@ public class WebhookList : BaseInvocable
 
         StoreCursor(changedTables.Cursor.ToString(), webhookId);
 
-        return new WebhookResponse<RecordsResponse>
+        return new()
         {
-            HttpResponseMessage = new HttpResponseMessage(HttpStatusCode.OK),
-            Result = new RecordsResponse
+            HttpResponseMessage = new(HttpStatusCode.OK),
+            Result = new()
             {
                 TableId = table.TableId,
                 Records = resultRecords

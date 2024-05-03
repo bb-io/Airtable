@@ -1,11 +1,13 @@
 ﻿using System.Text;
 using Apps.Airtable.Dtos;
+using Apps.Airtable.Models.Entities;
 using Apps.Airtable.Models.Identifiers;
 using Apps.Airtable.Models.Requests;
 using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Authentication;
 using RestSharp;
 using Apps.Airtable.Models.Responses;
+using Apps.Airtable.Models.Responses.Records;
 using Apps.Airtable.UrlBuilders;
 using Blackbird.Applications.Sdk.Common.Actions;
 using Blackbird.Applications.Sdk.Common.Invocation;
@@ -25,104 +27,123 @@ public class RecordActions : BaseInvocable
     public RecordActions(InvocationContext invocationContext) : base(invocationContext)
     {
         _credentials = invocationContext.AuthenticationCredentialsProviders;
-        _client = new AirtableClient(_credentials, new AirtableContentUrlBuilder());
+        _client = new(_credentials, new AirtableContentUrlBuilder());
     }
-
-    #region GET
 
     [Action("List records", Description = "List all records in the table.")]
     public async Task<ListRecordsResponse> ListRecords([ActionParameter] TableIdentifier tableIdentifier)
     {
         var request = new AirtableRequest($"/{tableIdentifier.TableId}", Method.Get, _credentials);
-        var records = await _client.ExecuteWithErrorHandling<ListRecordsResponse>(request);
-        return records;
+        var records = await _client.Paginate<RecordsPaginationResponse, RecordResponse>(request);
+
+        return new()
+        {
+            Records = records.Select(x => new RecordEntity(x))
+        };
     }
+
+    #region Field Getters
 
     [Action("Get value of string field", Description = "Get the value of a string field (e.g. single line text, " +
                                                        "long text, phone number, email, URL, single select).")]
-    public async Task<FieldValueResponse<string>> GetStringFieldValue([ActionParameter] TableIdentifier tableIdentifier,
-        [ActionParameter] RecordIdentifier recordIdentifier, [ActionParameter] FieldIdentifier fieldIdentifier)
+    public async Task<FieldValueResponse<string>> GetStringFieldValue([ActionParameter] FieldIdentifier fieldIdentifier)
     {
-        var field = await GetFieldValue(tableIdentifier, recordIdentifier, fieldIdentifier);
-        return new FieldValueResponse<string> { Value = field?.ToString() ?? string.Empty };
+        var field = await GetFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId, fieldIdentifier.FieldName);
+        return new() { Value = field  };
     }
 
     [Action("Get value of number field", Description =
         "Get the value of a number field (e.g. number, currency, percent, " +
         "rating).")]
     public async Task<FieldValueResponse<double?>> GetNumberFieldValue(
-        [ActionParameter] TableIdentifier tableIdentifier,
-        [ActionParameter] RecordIdentifier recordIdentifier, [ActionParameter] FieldIdentifier fieldIdentifier)
+        [ActionParameter] FieldIdentifier fieldIdentifier)
     {
-        var field = await GetFieldValue(tableIdentifier, recordIdentifier, fieldIdentifier);
-        return new FieldValueResponse<double?> { Value = (double?)field };
+        var field = await GetFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId, fieldIdentifier.FieldName);
+
+        try
+        {
+            return new() { Value = double.Parse(field) };
+        }
+        catch (FormatException)
+        {
+            throw new($"Provided field is not a number type. Actual field value: {field}");
+        }
     }
 
     [Action("Get value of date field", Description = "Get the value of a date field.")]
     public async Task<FieldValueResponse<DateTimeOffset?>> GetDateFieldValue(
-        [ActionParameter] TableIdentifier tableIdentifier,
-        [ActionParameter] RecordIdentifier recordIdentifier, [ActionParameter] FieldIdentifier fieldIdentifier)
+        [ActionParameter] FieldIdentifier fieldIdentifier)
     {
-        var field = await GetFieldValue(tableIdentifier, recordIdentifier, fieldIdentifier);
-        return new FieldValueResponse<DateTimeOffset?> { Value = (DateTime?)field };
-    }
-
-    [Action("Get value of boolean field", Description = "Get the value of a boolean field (e.g. checkbox).")]
-    public async Task<FieldValueResponse<bool>> GetBooleanFieldValue([ActionParameter] TableIdentifier tableIdentifier,
-        [ActionParameter] RecordIdentifier recordIdentifier, [ActionParameter] FieldIdentifier fieldIdentifier)
-    {
-        var field = await GetFieldValue(tableIdentifier, recordIdentifier, fieldIdentifier);
-        return new FieldValueResponse<bool> { Value = field != null };
-    }
-
-    [Action("Download files from attachment field", Description = "Download files from an attachment field.")]
-    public async Task<FilesResponse> DownloadFilesFromAttachmentField([ActionParameter] TableIdentifier tableIdentifier,
-        [ActionParameter] RecordIdentifier recordIdentifier, [ActionParameter] FieldIdentifier fieldIdentifier)
-    {
-        var field = await GetFieldValue(tableIdentifier, recordIdentifier, fieldIdentifier);
-        var files = JsonConvert.DeserializeObject<IEnumerable<FileDto>>(field?.ToString() ?? string.Empty,
-            _jsonSerializerSettings) ?? new FileDto[] { };
-        var downloadedFiles = new List<FileWrapper>();
-
-        foreach (var file in files)
-        {
-            downloadedFiles.Add(new FileWrapper
-            {
-                File = new(new(HttpMethod.Get, file.Url), file.Filename, file.Type)
-            });
-        }
-
-        return new FilesResponse { Files = downloadedFiles };
-    }
-
-    private async Task<object?> GetFieldValue(TableIdentifier tableIdentifier, RecordIdentifier recordIdentifier,
-        FieldIdentifier fieldIdentifier)
-    {
-        await CheckIfFieldExistsInTable(tableIdentifier, fieldIdentifier);
-        var request = new AirtableRequest($"/{tableIdentifier.TableId}/{recordIdentifier.RecordId}", Method.Get,
-            _credentials);
+        var field = await GetFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId, fieldIdentifier.FieldName);
 
         try
         {
-            var record = await _client.ExecuteWithErrorHandling<FullRecordDto>(request);
-            record.Fields.TryGetValue(fieldIdentifier.FieldName, out var field);
-            return field;
+            return new() { Value = DateTimeOffset.Parse(field) };
         }
-        catch
+        catch (FormatException)
         {
-            throw new Exception("Record with Record ID provided was not found.");
+            throw new($"Provided field is not a date type. Actual field value: {field}");
+        }
+    }
+
+    [Action("Get value of boolean field", Description = "Get the value of a boolean field (e.g. checkbox).")]
+    public async Task<FieldValueResponse<bool>> GetBooleanFieldValue([ActionParameter] FieldIdentifier fieldIdentifier)
+    {
+        var field = string.Empty;
+        try
+        {
+            field = await GetFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId,
+                fieldIdentifier.FieldName);
+            return new() { Value = bool.Parse(field) };
+        }
+        catch (FormatException)
+        {
+            throw new($"Provided field is not a boolean type. Actual field value: {field}");
+        }
+        catch (Exception ex)
+        {
+            if (ex.Message == ErrorMessages.EmptyRecordField)
+                return new() { Value = false };
+
+            throw;
+        }
+    }
+
+    [Action("Download files from attachment field", Description = "Download files from an attachment field.")]
+    public async Task<FilesResponse> DownloadFilesFromAttachmentField([ActionParameter] FieldIdentifier fieldIdentifier)
+    {
+        var field = await GetFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId, fieldIdentifier.FieldName);
+
+        try
+        {
+            var files = JsonConvert.DeserializeObject<IEnumerable<FileDto>>(field, _jsonSerializerSettings)!;
+            var downloadedFiles = new List<FileWrapper>();
+
+            foreach (var file in files)
+            {
+                downloadedFiles.Add(new()
+                {
+                    File = new(new(HttpMethod.Get, file.Url), file.Filename, file.Type)
+                });
+            }
+
+            return new() { Files = downloadedFiles };
+        }
+        catch (Exception ex)
+        {
+            InvocationContext.Logger?.LogError.Invoke($"Airtable field files download error. Exception: {ex}", null);
+            throw new($"Provided field is not a file type. Actual field value: {field}");
         }
     }
 
     #endregion
 
-    #region PATCH
+    #region Field setters
 
     [Action("Update value of string field", Description =
         "Update the value of a string field (e.g. single line text, " +
         "long text, phone number, email, URL, single select).")]
-    public async Task<RecordDto> UpdateStringFieldValue([ActionParameter] TableIdentifier tableIdentifier,
-        [ActionParameter] RecordIdentifier recordIdentifier, [ActionParameter] FieldIdentifier fieldIdentifier,
+    public async Task<RecordResponse> UpdateStringFieldValue([ActionParameter] FieldIdentifier fieldIdentifier,
         [ActionParameter] [Display("New value")]
         string newValue)
     {
@@ -132,15 +153,15 @@ public class RecordActions : BaseInvocable
                 ""{fieldIdentifier.FieldName}"": ""{newValue}""
             }}
         }}";
-        var record = await UpdateFieldValue(tableIdentifier, recordIdentifier, fieldIdentifier, jsonBody);
+        var record = await UpdateFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId,
+            fieldIdentifier.FieldName, jsonBody);
         return record;
     }
 
     [Action("Update value of number field", Description =
         "Update the value of a number field (e.g. number, currency, " +
         "percent, rating).")]
-    public async Task<RecordDto> UpdateNumberFieldValue([ActionParameter] TableIdentifier tableIdentifier,
-        [ActionParameter] RecordIdentifier recordIdentifier, [ActionParameter] FieldIdentifier fieldIdentifier,
+    public async Task<RecordResponse> UpdateNumberFieldValue([ActionParameter] FieldIdentifier fieldIdentifier,
         [ActionParameter] [Display("New value")]
         double newValue)
     {
@@ -150,13 +171,13 @@ public class RecordActions : BaseInvocable
                 ""{fieldIdentifier.FieldName}"": {newValue}
             }}
         }}";
-        var record = await UpdateFieldValue(tableIdentifier, recordIdentifier, fieldIdentifier, jsonBody);
+        var record = await UpdateFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId,
+            fieldIdentifier.FieldName, jsonBody);
         return record;
     }
 
     [Action("Update value of date field", Description = "Update the value of a date field.")]
-    public async Task<RecordDto> UpdateDateFieldValue([ActionParameter] TableIdentifier tableIdentifier,
-        [ActionParameter] RecordIdentifier recordIdentifier, [ActionParameter] FieldIdentifier fieldIdentifier,
+    public async Task<RecordResponse> UpdateDateFieldValue([ActionParameter] FieldIdentifier fieldIdentifier,
         [ActionParameter] [Display("New value")]
         DateTime newValue)
     {
@@ -166,13 +187,13 @@ public class RecordActions : BaseInvocable
                 ""{fieldIdentifier.FieldName}"": ""{newValue.ToString("O")}""
             }}
         }}";
-        var record = await UpdateFieldValue(tableIdentifier, recordIdentifier, fieldIdentifier, jsonBody);
+        var record = await UpdateFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId,
+            fieldIdentifier.FieldName, jsonBody);
         return record;
     }
 
     [Action("Update value of boolean field", Description = "Update the value of a boolean field (e.g. checkbox).")]
-    public async Task<RecordDto> UpdateBooleanFieldValue([ActionParameter] TableIdentifier tableIdentifier,
-        [ActionParameter] RecordIdentifier recordIdentifier, [ActionParameter] FieldIdentifier fieldIdentifier,
+    public async Task<RecordResponse> UpdateBooleanFieldValue([ActionParameter] FieldIdentifier fieldIdentifier,
         [ActionParameter] [Display("New value")]
         bool newValue)
     {
@@ -182,17 +203,17 @@ public class RecordActions : BaseInvocable
                 ""{fieldIdentifier.FieldName}"": {newValue.ToString().ToLowerInvariant()}
             }}
         }}";
-        var record = await UpdateFieldValue(tableIdentifier, recordIdentifier, fieldIdentifier, jsonBody);
+        var record = await UpdateFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId,
+            fieldIdentifier.FieldName, jsonBody);
         return record;
     }
 
     //[Action("Upload file to attachment field", Description = "Upload a file to an attachment field.")]
-    public async Task<RecordDto> UploadFileToAttachmentField([ActionParameter] TableIdentifier tableIdentifier,
-        [ActionParameter] RecordIdentifier recordIdentifier, [ActionParameter] FieldIdentifier fieldIdentifier,
+    public async Task<RecordResponse> UploadFileToAttachmentField([ActionParameter] FieldIdentifier fieldIdentifier,
         [ActionParameter] FileRequest file)
     {
-        var field = await GetFieldValue(tableIdentifier, recordIdentifier, fieldIdentifier);
-        var files = JsonConvert.DeserializeObject<IEnumerable<FileDto>>(field?.ToString() ?? string.Empty,
+        var field = await GetFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId, fieldIdentifier.FieldName);
+        var files = JsonConvert.DeserializeObject<IEnumerable<FileDto>>(field,
             _jsonSerializerSettings) ?? new FileDto[] { };
 
         var jsonBody = new StringBuilder();
@@ -213,41 +234,69 @@ public class RecordActions : BaseInvocable
         jsonBody.AppendLine("}");
         jsonBody.AppendLine("}");
 
-        var record = await UpdateFieldValue(tableIdentifier, recordIdentifier, fieldIdentifier, jsonBody.ToString());
+        var record = await UpdateFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId,
+            fieldIdentifier.FieldName, jsonBody.ToString());
         return record;
-    }
-
-    private async Task<RecordDto> UpdateFieldValue(TableIdentifier tableIdentifier, RecordIdentifier recordIdentifier,
-        FieldIdentifier fieldIdentifier, string jsonBody)
-    {
-        await CheckIfFieldExistsInTable(tableIdentifier, fieldIdentifier);
-        var request = new AirtableRequest($"/{tableIdentifier.TableId}/{recordIdentifier.RecordId}", Method.Patch,
-            _credentials);
-        request.AddJsonBody(jsonBody);
-
-        try
-        {
-            var record = await _client.ExecuteWithErrorHandling<RecordDto>(request);
-            return record;
-        }
-        catch
-        {
-            throw new Exception("Record with Record ID provided was not found.");
-        }
     }
 
     #endregion
 
-    private async Task CheckIfFieldExistsInTable(TableIdentifier tableIdentifier, FieldIdentifier fieldIdentifier)
+    private async Task<string> GetFieldValue(string tableId, string recordId, string fieldName)
+    {
+        await CheckIfFieldExistsInTable(tableId, fieldName);
+        var request = new AirtableRequest($"/{tableId}/{recordId}", Method.Get, _credentials);
+
+        try
+        {
+            var record = await _client.ExecuteWithErrorHandling<RecordResponse>(request);
+            if (!record.Fields.TryGetValue(fieldName, out var field))
+                throw new(ErrorMessages.EmptyRecordField);
+
+            return field.ToString() ?? String.Empty;
+        }
+        catch (Exception ex)
+        {
+            if (ex.Message == "NOT_FOUND")
+                throw new(ErrorMessages.RecordNotFound);
+
+            throw;
+        }
+    }
+
+    private async Task<RecordResponse> UpdateFieldValue(string tableId, string recordId, string fieldName,
+        string jsonBody)
+    {
+        await CheckIfFieldExistsInTable(tableId, fieldName);
+        var request = new AirtableRequest($"/{tableId}/{recordId}", Method.Patch, _credentials)
+            .AddJsonBody(jsonBody);
+
+        try
+        {
+            var record = await _client.ExecuteWithErrorHandling<RecordResponse>(request);
+            return record;
+        }
+        catch (Exception ex)
+        {
+            if (ex.Message == "NOT_FOUND")
+                throw new(ErrorMessages.RecordNotFound);
+
+            throw;
+        }
+    }
+
+    private async Task CheckIfFieldExistsInTable(string tableId, string fieldName)
     {
         var client = new AirtableClient(_credentials, new AirtableMetaUrlBuilder());
         var request = new AirtableRequest("/tables", Method.Get, _credentials);
         var tables = await client.ExecuteWithErrorHandling<TableDtoWrapper<FullTableDto>>(request);
-        var table = tables.Tables.First(table =>
-            table.Id == tableIdentifier.TableId || table.Name == tableIdentifier.TableId);
-        var field = table.Fields.FirstOrDefault(field => field.Name == fieldIdentifier.FieldName);
+        var table = tables.Tables.FirstOrDefault(table => table.Id == tableId || table.Name == tableId);
+
+        if (table is null)
+            throw new(ErrorMessages.TableNotFound);
+
+        var field = table.Fields.FirstOrDefault(field => field.Name == fieldName);
 
         if (field == null)
-            throw new Exception("Field with the specified name does not exist in the table.");
+            throw new(ErrorMessages.FieldDoesNotExist);
     }
 }
