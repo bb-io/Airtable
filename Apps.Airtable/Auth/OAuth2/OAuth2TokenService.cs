@@ -54,7 +54,7 @@ public class OAuth2TokenService : BaseInvocable, IOAuth2TokenService
         CancellationToken cancellationToken)
     {
         var utcNow = DateTime.UtcNow;
-        using HttpClient httpClient = new HttpClient();
+        using HttpClient httpClient = new();
         httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
         using var httpContent = new FormUrlEncodedContent(bodyParameters);
         using var response = await httpClient.PostAsync(TokenUrl, httpContent, cancellationToken);

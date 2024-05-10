@@ -20,7 +20,7 @@ public class BaseWebhookHandler : BaseInvocable, IWebhookEventHandler, IAsyncRen
     {
         _subscriptionEvent = subscriptionEvent;
         _dataType = dataType;
-        _client = new AirtableClient(invocationContext.AuthenticationCredentialsProviders, new AirtableWebhookUrlBuilder());
+        _client = new(invocationContext.AuthenticationCredentialsProviders, new AirtableWebhookUrlBuilder());
         _bridgePayloadUrl = $"{invocationContext.UriInfo.BridgeServiceUrl.ToString().TrimEnd('/')}/webhooks/{ApplicationConstants.AppName}";
     }
 

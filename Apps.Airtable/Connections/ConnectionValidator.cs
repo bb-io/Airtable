@@ -17,7 +17,7 @@ public class ConnectionValidator : IConnectionValidator
         try
         {
             await client.ExecuteWithErrorHandling(request);
-            return new ConnectionValidationResponse
+            return new()
             {
                 IsValid = true,
                 Message = "Success"
@@ -25,7 +25,7 @@ public class ConnectionValidator : IConnectionValidator
         }
         catch (Exception)
         {
-            return new ConnectionValidationResponse
+            return new()
             {
                 IsValid = false,
                 Message = "Please enter correct Base ID value."

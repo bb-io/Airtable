@@ -38,7 +38,7 @@ public class AirtableApplication : BaseInvocable, IApplication, ICategoryProvide
 
     private Dictionary<Type, object> CreateTypesInstances()
     {
-        return new Dictionary<Type, object>
+        return new()
         {
             { typeof(IOAuth2AuthorizeService), new OAuth2AuthorizeService(InvocationContext) },
             { typeof(IOAuth2TokenService), new OAuth2TokenService(InvocationContext) }
