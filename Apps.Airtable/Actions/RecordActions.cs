@@ -184,7 +184,7 @@ public class RecordActions : AirtableInvocable
         var jsonBody = $@"
         {{
             ""fields"": {{
-                ""{fieldIdentifier.FieldId}"": ""{newValue.ToString("O")}""
+                ""{fieldIdentifier.FieldId}"": ""{newValue:yyyy-MM-dd}""
             }},
             ""returnFieldsByFieldId"": true
         }}";
