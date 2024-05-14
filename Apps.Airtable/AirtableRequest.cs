@@ -12,6 +12,8 @@ public class AirtableRequest : BlackBirdRestRequest
 
     protected override void AddAuth(IEnumerable<AuthenticationCredentialsProvider> authenticationCredentialsProviders)
     {
-        this.AddHeader("Authorization", authenticationCredentialsProviders.First(p => p.KeyName == "Authorization").Value);
+        // TODO REVERT
+        this.AddHeader("Authorization", "Bearer pat2YL7eRLjkpj7RX.75d6f290143c6b93130bf2e67b18b8dae4900f4cc95e0f1b6864c90d9e716731");
+        // this.AddHeader("Authorization", authenticationCredentialsProviders.First(p => p.KeyName == "Authorization").Value);
     }
 }
