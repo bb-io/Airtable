@@ -4,11 +4,11 @@ public class TableDto
 {
     public string Id { get; set; }
     public string Name { get; set; }
+    public string PrimaryFieldId { get; set; }
 }
 
 public class FullTableDto : TableDto
-{
-    public string PrimaryFieldId { get; set; }
+{   
     public IEnumerable<FieldDto> Fields { get; set; }
 }
 

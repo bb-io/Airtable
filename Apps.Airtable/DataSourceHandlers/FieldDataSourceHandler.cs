@@ -24,15 +24,16 @@ public class FieldDataSourceHandler : AirtableInvocable, IAsyncDataSourceHandler
         if (string.IsNullOrWhiteSpace(_field.TableId))
             throw new("You should specify the Table ID first");
 
-        if (string.IsNullOrWhiteSpace(_field.RecordId))
-            throw new("You should specify the Record ID first");
+        var tableRequest = new AirtableRequest("/tables", Method.Get, InvocationContext.AuthenticationCredentialsProviders); ;
+        var tables = await MetaClient.ExecuteWithErrorHandling<TableDtoWrapper<FullTableDto>>(tableRequest);
 
-        var request = new AirtableRequest($"/{_field.TableId}/{_field.RecordId}", Method.Get, Creds);
-        var record = await ContentClient.ExecuteWithErrorHandling<RecordResponse>(request);
+        var table = tables.Tables.FirstOrDefault(x => x.Id == _field.TableId);
 
-        return record.Fields
+        if (table == null) throw new Exception($"Could not find table with ID {_field.TableId}");        
+
+        return table.Fields
             .Where(x => context.SearchString is null ||
-                        x.Key.Contains(context.SearchString, StringComparison.OrdinalIgnoreCase))
-            .ToDictionary(x => x.Key, x => x.Key);
+                        x.Name.Contains(context.SearchString, StringComparison.OrdinalIgnoreCase))
+            .ToDictionary(x => x.Id, x => x.Name);
     }
 }

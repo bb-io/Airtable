@@ -11,9 +11,11 @@ public class AirtableInvocable : BaseInvocable
         InvocationContext.AuthenticationCredentialsProviders.ToArray();
 
     protected AirtableClient ContentClient { get; }
+    protected AirtableClient MetaClient { get; }
     
     public AirtableInvocable(InvocationContext invocationContext) : base(invocationContext)
     {
         ContentClient = new(Creds, new AirtableContentUrlBuilder());
+        MetaClient = new (Creds, new AirtableMetaUrlBuilder());
     }
 }
