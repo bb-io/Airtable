@@ -42,6 +42,16 @@ public class RecordActions : AirtableInvocable
         };
     }
 
+    [Action("Search record", Description = "Search for a single record in the table.")]
+    public async Task<RecordEntity> SearchRecord([ActionParameter] SingleFieldIdentifier identifier, [ActionParameter][Display("Equals")] string equals)
+    {
+        var request = new AirtableRequest($"/{identifier.TableId}", Method.Get, _credentials);
+        request.AddQueryParameter("filterByFormula", $"{identifier.FieldId}=\"{equals}\"");
+        var records = await ContentClient.Paginate<RecordsPaginationResponse, RecordResponse>(request);
+
+        return records.Select(x => new RecordEntity(x)).FirstOrDefault() ?? new RecordEntity(new RecordResponse { Id = null, CreatedTime = DateTime.MinValue, Fields = new Dictionary<string, object> { } }); 
+    }
+
     #region Field Getters
 
     [Action("Get value of text field", Description = "Get the value of a text field (e.g. single line text, " +
