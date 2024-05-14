@@ -1,6 +1,7 @@
 using Apps.Airtable.Dtos;
 using Apps.Airtable.Invocables;
 using Apps.Airtable.Models.Identifiers;
+using Apps.Airtable.UrlBuilders;
 using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Dynamic;
 using Blackbird.Applications.Sdk.Common.Invocation;

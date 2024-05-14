@@ -13,6 +13,7 @@ using Blackbird.Applications.Sdk.Common.Actions;
 using Blackbird.Applications.Sdk.Common.Invocation;
 using Newtonsoft.Json;
 using Apps.Airtable.Invocables;
+using Newtonsoft.Json.Linq;
 
 namespace Apps.Airtable.Actions;
 
@@ -43,7 +44,7 @@ public class RecordActions : AirtableInvocable
 
     #region Field Getters
 
-    [Action("Get value of string field", Description = "Get the value of a string field (e.g. single line text, " +
+    [Action("Get value of text field", Description = "Get the value of a text field (e.g. single line text, " +
                                                        "long text, phone number, email, URL, single select).")]
     public async Task<FieldValueResponse<string>> GetStringFieldValue([ActionParameter] FieldIdentifier fieldIdentifier)
     {
@@ -139,10 +140,10 @@ public class RecordActions : AirtableInvocable
 
     #region Field setters
 
-    [Action("Update value of string field", Description =
-        "Update the value of a string field (e.g. single line text, " +
+    [Action("Update value of text field", Description =
+        "Update the value of a text field (e.g. single line text, " +
         "long text, phone number, email, URL, single select).")]
-    public async Task<RecordResponse> UpdateStringFieldValue([ActionParameter] FieldIdentifier fieldIdentifier,
+    public Task UpdateStringFieldValue([ActionParameter] FieldIdentifier fieldIdentifier,
         [ActionParameter] [Display("New value")]
         string newValue)
     {
@@ -153,15 +154,14 @@ public class RecordActions : AirtableInvocable
             }},
             ""returnFieldsByFieldId"": true
         }}";
-        var record = await UpdateFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId,
+        return UpdateFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId,
             fieldIdentifier.FieldId, jsonBody);
-        return record;
     }
 
     [Action("Update value of number field", Description =
         "Update the value of a number field (e.g. number, currency, " +
         "percent, rating).")]
-    public async Task<RecordResponse> UpdateNumberFieldValue([ActionParameter] FieldIdentifier fieldIdentifier,
+    public Task UpdateNumberFieldValue([ActionParameter] FieldIdentifier fieldIdentifier,
         [ActionParameter] [Display("New value")]
         double newValue)
     {
@@ -172,13 +172,12 @@ public class RecordActions : AirtableInvocable
             }},
             ""returnFieldsByFieldId"": true
         }}";
-        var record = await UpdateFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId,
+        return UpdateFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId,
             fieldIdentifier.FieldId, jsonBody);
-        return record;
     }
 
     [Action("Update value of date field", Description = "Update the value of a date field.")]
-    public async Task<RecordResponse> UpdateDateFieldValue([ActionParameter] FieldIdentifier fieldIdentifier,
+    public Task UpdateDateFieldValue([ActionParameter] FieldIdentifier fieldIdentifier,
         [ActionParameter] [Display("New value")]
         DateTime newValue)
     {
@@ -189,13 +188,12 @@ public class RecordActions : AirtableInvocable
             }},
             ""returnFieldsByFieldId"": true
         }}";
-        var record = await UpdateFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId,
+        return UpdateFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId,
             fieldIdentifier.FieldId, jsonBody);
-        return record;
     }
 
     [Action("Update value of boolean field", Description = "Update the value of a boolean field (e.g. checkbox).")]
-    public async Task<RecordResponse> UpdateBooleanFieldValue([ActionParameter] FieldIdentifier fieldIdentifier,
+    public Task UpdateBooleanFieldValue([ActionParameter] FieldIdentifier fieldIdentifier,
         [ActionParameter] [Display("New value")]
         bool newValue)
     {
@@ -206,13 +204,12 @@ public class RecordActions : AirtableInvocable
             }},
             ""returnFieldsByFieldId"": true
         }}";
-        var record = await UpdateFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId,
+        return UpdateFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId,
             fieldIdentifier.FieldId, jsonBody);
-        return record;
     }
 
     //[Action("Upload file to attachment field", Description = "Upload a file to an attachment field.")]
-    public async Task<RecordResponse> UploadFileToAttachmentField([ActionParameter] FieldIdentifier fieldIdentifier,
+    public async Task UploadFileToAttachmentField([ActionParameter] FieldIdentifier fieldIdentifier,
         [ActionParameter] FileRequest file)
     {
         var field = await GetFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId, fieldIdentifier.FieldId);
@@ -237,16 +234,15 @@ public class RecordActions : AirtableInvocable
         jsonBody.AppendLine("}");
         jsonBody.AppendLine("}");
 
-        var record = await UpdateFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId,
+        await UpdateFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId,
             fieldIdentifier.FieldId, jsonBody.ToString());
-        return record;
     }
 
     #endregion
 
     private async Task<string> GetFieldValue(string tableId, string recordId, string fieldId)
     {
-        await CheckIfFieldExistsInTable(tableId, fieldId);
+        var table = await GetFieldTable(tableId, fieldId);
         var request = new AirtableRequest($"/{tableId}/{recordId}", Method.Get, _credentials);
         request.AddQueryParameter("returnFieldsByFieldId", "true");
 
@@ -256,7 +252,12 @@ public class RecordActions : AirtableInvocable
             if (!record.Fields.TryGetValue(fieldId, out var field))
                 throw new(ErrorMessages.EmptyRecordField);
 
-            return field.ToString() ?? String.Empty;
+            var fieldSchema = table.Fields.First(x => x.Id == fieldId);
+            return fieldSchema.Type switch
+            {
+                "multipleLookupValues" => (field as JArray)!.First().ToString(),
+                _ => field.ToString() ?? String.Empty
+            };
         }
         catch (Exception ex)
         {
@@ -267,16 +268,15 @@ public class RecordActions : AirtableInvocable
         }
     }
 
-    private async Task<RecordResponse> UpdateFieldValue(string tableId, string recordId, string fieldId,
+    private async Task UpdateFieldValue(string tableId, string recordId, string fieldId,
         string jsonBody)
     {
-        await CheckIfFieldExistsInTable(tableId, fieldId);
+        await GetFieldTable(tableId, fieldId);
         var request = new AirtableRequest($"/{tableId}/{recordId}", Method.Patch, _credentials)
             .AddJsonBody(jsonBody);
         try
         {
-            var record = await ContentClient.ExecuteWithErrorHandling<RecordResponse>(request);
-            return record;
+            await ContentClient.ExecuteWithErrorHandling(request);
         }
         catch (Exception ex)
         {
@@ -287,7 +287,7 @@ public class RecordActions : AirtableInvocable
         }
     }
 
-    private async Task CheckIfFieldExistsInTable(string tableId, string fieldId)
+    private async Task<FullTableDto> GetFieldTable(string tableId, string fieldId)
     {
         var request = new AirtableRequest("/tables", Method.Get, _credentials);
         var tables = await MetaClient.ExecuteWithErrorHandling<TableDtoWrapper<FullTableDto>>(request);
@@ -300,5 +300,7 @@ public class RecordActions : AirtableInvocable
 
         if (field == null)
             throw new(ErrorMessages.FieldDoesNotExist);
+
+        return table;
     }
 }
