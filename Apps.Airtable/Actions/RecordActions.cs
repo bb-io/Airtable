@@ -12,14 +12,14 @@ using Apps.Airtable.UrlBuilders;
 using Blackbird.Applications.Sdk.Common.Actions;
 using Blackbird.Applications.Sdk.Common.Invocation;
 using Newtonsoft.Json;
+using Apps.Airtable.Invocables;
 
 namespace Apps.Airtable.Actions;
 
 [ActionList]
-public class RecordActions : BaseInvocable
+public class RecordActions : AirtableInvocable
 {
     private readonly IEnumerable<AuthenticationCredentialsProvider> _credentials;
-    private readonly AirtableClient _client;
 
     private readonly JsonSerializerSettings _jsonSerializerSettings =
         new() { MissingMemberHandling = MissingMemberHandling.Ignore };
@@ -27,14 +27,13 @@ public class RecordActions : BaseInvocable
     public RecordActions(InvocationContext invocationContext) : base(invocationContext)
     {
         _credentials = invocationContext.AuthenticationCredentialsProviders;
-        _client = new(_credentials, new AirtableContentUrlBuilder());
     }
 
     [Action("List records", Description = "List all records in the table.")]
     public async Task<ListRecordsResponse> ListRecords([ActionParameter] TableIdentifier tableIdentifier)
     {
         var request = new AirtableRequest($"/{tableIdentifier.TableId}", Method.Get, _credentials);
-        var records = await _client.Paginate<RecordsPaginationResponse, RecordResponse>(request);
+        var records = await ContentClient.Paginate<RecordsPaginationResponse, RecordResponse>(request);
 
         return new()
         {
@@ -48,7 +47,7 @@ public class RecordActions : BaseInvocable
                                                        "long text, phone number, email, URL, single select).")]
     public async Task<FieldValueResponse<string>> GetStringFieldValue([ActionParameter] FieldIdentifier fieldIdentifier)
     {
-        var field = await GetFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId, fieldIdentifier.FieldName);
+        var field = await GetFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId, fieldIdentifier.FieldId);
         return new() { Value = field  };
     }
 
@@ -58,7 +57,7 @@ public class RecordActions : BaseInvocable
     public async Task<FieldValueResponse<double?>> GetNumberFieldValue(
         [ActionParameter] FieldIdentifier fieldIdentifier)
     {
-        var field = await GetFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId, fieldIdentifier.FieldName);
+        var field = await GetFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId, fieldIdentifier.FieldId);
 
         try
         {
@@ -74,7 +73,7 @@ public class RecordActions : BaseInvocable
     public async Task<FieldValueResponse<DateTimeOffset?>> GetDateFieldValue(
         [ActionParameter] FieldIdentifier fieldIdentifier)
     {
-        var field = await GetFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId, fieldIdentifier.FieldName);
+        var field = await GetFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId, fieldIdentifier.FieldId);
 
         try
         {
@@ -93,7 +92,7 @@ public class RecordActions : BaseInvocable
         try
         {
             field = await GetFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId,
-                fieldIdentifier.FieldName);
+                fieldIdentifier.FieldId);
             return new() { Value = bool.Parse(field) };
         }
         catch (FormatException)
@@ -112,7 +111,7 @@ public class RecordActions : BaseInvocable
     [Action("Download files from attachment field", Description = "Download files from an attachment field.")]
     public async Task<FilesResponse> DownloadFilesFromAttachmentField([ActionParameter] FieldIdentifier fieldIdentifier)
     {
-        var field = await GetFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId, fieldIdentifier.FieldName);
+        var field = await GetFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId, fieldIdentifier.FieldId);
 
         try
         {
@@ -150,11 +149,12 @@ public class RecordActions : BaseInvocable
         var jsonBody = $@"
         {{
             ""fields"": {{
-                ""{fieldIdentifier.FieldName}"": ""{newValue}""
-            }}
+                ""{fieldIdentifier.FieldId}"": ""{newValue}""
+            }},
+            ""returnFieldsByFieldId"": true
         }}";
         var record = await UpdateFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId,
-            fieldIdentifier.FieldName, jsonBody);
+            fieldIdentifier.FieldId, jsonBody);
         return record;
     }
 
@@ -168,11 +168,12 @@ public class RecordActions : BaseInvocable
         var jsonBody = $@"
         {{
             ""fields"": {{
-                ""{fieldIdentifier.FieldName}"": {newValue}
-            }}
+                ""{fieldIdentifier.FieldId}"": {newValue}
+            }},
+            ""returnFieldsByFieldId"": true
         }}";
         var record = await UpdateFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId,
-            fieldIdentifier.FieldName, jsonBody);
+            fieldIdentifier.FieldId, jsonBody);
         return record;
     }
 
@@ -184,11 +185,12 @@ public class RecordActions : BaseInvocable
         var jsonBody = $@"
         {{
             ""fields"": {{
-                ""{fieldIdentifier.FieldName}"": ""{newValue.ToString("O")}""
-            }}
+                ""{fieldIdentifier.FieldId}"": ""{newValue.ToString("O")}""
+            }},
+            ""returnFieldsByFieldId"": true
         }}";
         var record = await UpdateFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId,
-            fieldIdentifier.FieldName, jsonBody);
+            fieldIdentifier.FieldId, jsonBody);
         return record;
     }
 
@@ -200,11 +202,12 @@ public class RecordActions : BaseInvocable
         var jsonBody = $@"
         {{
             ""fields"": {{
-                ""{fieldIdentifier.FieldName}"": {newValue.ToString().ToLowerInvariant()}
-            }}
+                ""{fieldIdentifier.FieldId}"": {newValue.ToString().ToLowerInvariant()}
+            }},
+            ""returnFieldsByFieldId"": true
         }}";
         var record = await UpdateFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId,
-            fieldIdentifier.FieldName, jsonBody);
+            fieldIdentifier.FieldId, jsonBody);
         return record;
     }
 
@@ -212,14 +215,14 @@ public class RecordActions : BaseInvocable
     public async Task<RecordResponse> UploadFileToAttachmentField([ActionParameter] FieldIdentifier fieldIdentifier,
         [ActionParameter] FileRequest file)
     {
-        var field = await GetFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId, fieldIdentifier.FieldName);
+        var field = await GetFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId, fieldIdentifier.FieldId);
         var files = JsonConvert.DeserializeObject<IEnumerable<FileDto>>(field,
             _jsonSerializerSettings) ?? new FileDto[] { };
 
         var jsonBody = new StringBuilder();
         jsonBody.AppendLine("{");
         jsonBody.AppendLine("\"fields\": {");
-        jsonBody.AppendLine($"\"{fieldIdentifier.FieldName}\": [");
+        jsonBody.AppendLine($"\"{fieldIdentifier.FieldId}\": [");
 
         foreach (var fileDto in files)
         {
@@ -235,21 +238,22 @@ public class RecordActions : BaseInvocable
         jsonBody.AppendLine("}");
 
         var record = await UpdateFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId,
-            fieldIdentifier.FieldName, jsonBody.ToString());
+            fieldIdentifier.FieldId, jsonBody.ToString());
         return record;
     }
 
     #endregion
 
-    private async Task<string> GetFieldValue(string tableId, string recordId, string fieldName)
+    private async Task<string> GetFieldValue(string tableId, string recordId, string fieldId)
     {
-        await CheckIfFieldExistsInTable(tableId, fieldName);
+        await CheckIfFieldExistsInTable(tableId, fieldId);
         var request = new AirtableRequest($"/{tableId}/{recordId}", Method.Get, _credentials);
+        request.AddQueryParameter("returnFieldsByFieldId", "true");
 
         try
         {
-            var record = await _client.ExecuteWithErrorHandling<RecordResponse>(request);
-            if (!record.Fields.TryGetValue(fieldName, out var field))
+            var record = await ContentClient.ExecuteWithErrorHandling<RecordResponse>(request);
+            if (!record.Fields.TryGetValue(fieldId, out var field))
                 throw new(ErrorMessages.EmptyRecordField);
 
             return field.ToString() ?? String.Empty;
@@ -263,16 +267,15 @@ public class RecordActions : BaseInvocable
         }
     }
 
-    private async Task<RecordResponse> UpdateFieldValue(string tableId, string recordId, string fieldName,
+    private async Task<RecordResponse> UpdateFieldValue(string tableId, string recordId, string fieldId,
         string jsonBody)
     {
-        await CheckIfFieldExistsInTable(tableId, fieldName);
+        await CheckIfFieldExistsInTable(tableId, fieldId);
         var request = new AirtableRequest($"/{tableId}/{recordId}", Method.Patch, _credentials)
             .AddJsonBody(jsonBody);
-
         try
         {
-            var record = await _client.ExecuteWithErrorHandling<RecordResponse>(request);
+            var record = await ContentClient.ExecuteWithErrorHandling<RecordResponse>(request);
             return record;
         }
         catch (Exception ex)
@@ -284,17 +287,16 @@ public class RecordActions : BaseInvocable
         }
     }
 
-    private async Task CheckIfFieldExistsInTable(string tableId, string fieldName)
+    private async Task CheckIfFieldExistsInTable(string tableId, string fieldId)
     {
-        var client = new AirtableClient(_credentials, new AirtableMetaUrlBuilder());
         var request = new AirtableRequest("/tables", Method.Get, _credentials);
-        var tables = await client.ExecuteWithErrorHandling<TableDtoWrapper<FullTableDto>>(request);
+        var tables = await MetaClient.ExecuteWithErrorHandling<TableDtoWrapper<FullTableDto>>(request);
         var table = tables.Tables.FirstOrDefault(table => table.Id == tableId || table.Name == tableId);
 
         if (table is null)
             throw new(ErrorMessages.TableNotFound);
 
-        var field = table.Fields.FirstOrDefault(field => field.Name == fieldName);
+        var field = table.Fields.FirstOrDefault(field => field.Id == fieldId);
 
         if (field == null)
             throw new(ErrorMessages.FieldDoesNotExist);
