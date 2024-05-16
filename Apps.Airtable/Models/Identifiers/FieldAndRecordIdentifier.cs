@@ -5,7 +5,7 @@ using Blackbird.Applications.Sdk.Common.Dynamic;
 
 namespace Apps.Airtable.Models.Identifiers;
 
-public class FieldIdentifier
+public class FieldAndRecordIdentifier
 {
     [Display("Table ID")] 
     [DataSource(typeof(TableDataSourceHandler))]

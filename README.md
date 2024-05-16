@@ -29,11 +29,19 @@ Before you can connect you need to make sure that:
 
 ## Actions
 
-### Records 
+### Records
+
 - **List records** List all records in the table.
-### Attachments 
+- **Search record** Search for one specific record where the field value is compared to the value you input.
+- **Add new record** Creates a new record in the table with its primary field filled in. Use the "Update value of field" actions below to fill out the other fields.
+- **Delete record** Deletes a record given the record ID.
+
+### Attachments
+
 - **Download files from attachment field** Download files from an attachment field.
+
 ### Fields
+
 - **Get value of boolean field** Get the value of a boolean field (e.g. checkbox).
 - **Get value of date field** Get the value of a date field.
 - **Get value of number field** Get the value of a number field (e.g. number, currency, percent, rating).
@@ -46,8 +54,9 @@ Before you can connect you need to make sure that:
 ## Events
 
 ### Records
-- **On records added** This webhook is triggered when new records are added. 
- 
+
+- **On records added** This webhook is triggered when new records are added.
+
 ## Feedback
 
 Do you want to use this app or do you have feedback on our implementation? Reach out to us using the [established channels](https://www.blackbird.io/) or create an issue.
