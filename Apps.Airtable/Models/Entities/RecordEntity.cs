@@ -17,7 +17,7 @@ public class RecordEntity
         CreatedTime = record.CreatedTime;
         Fields = record.Fields?.Select(x => new FieldEntity()
         {
-            Name = x.Key,
+            Id = x.Key,
             Value = x.Value?.ToString() ?? string.Empty
         });
     }
