@@ -52,14 +52,15 @@ public class RecordActions : AirtableInvocable
         return records.Select(x => new RecordEntity(x)).FirstOrDefault() ?? new RecordEntity(new RecordResponse { Id = null, CreatedTime = DateTime.MinValue, Fields = new Dictionary<string, object> { } }); 
     }
 
-    [Action("Add new record", Description = "Add a new record to the table, with at least one filled in field.")]
-    public async Task<RecordEntity> AddRecord([ActionParameter] SingleFieldIdentifier identifier, [ActionParameter][Display("Value")] string value)
+    [Action("Add new record", Description = "Add a new record to the table, with at least the table's primary field value")]
+    public async Task<RecordEntity> AddRecord([ActionParameter] TableIdentifier identifier, [ActionParameter][Display("Primary field value")] string value)
     {
+        var primaryFieldId = await GetTablePrimaryFieldId(identifier.TableId);
         var request = new AirtableRequest($"/{identifier.TableId}", Method.Post, _credentials);
         var jsonBody = $@"
         {{
             ""fields"": {{
-                ""{identifier.FieldId}"": ""{value}""
+                ""{primaryFieldId}"": ""{value}""
             }},
             ""returnFieldsByFieldId"": true
         }}";
