@@ -8,11 +8,11 @@ using Blackbird.Applications.Sdk.Common.Authentication;
 using RestSharp;
 using Apps.Airtable.Models.Responses;
 using Apps.Airtable.Models.Responses.Records;
-using Apps.Airtable.UrlBuilders;
 using Blackbird.Applications.Sdk.Common.Actions;
 using Blackbird.Applications.Sdk.Common.Invocation;
 using Newtonsoft.Json;
 using Apps.Airtable.Invocables;
+using Blackbird.Applications.Sdk.Common.Files;
 using Newtonsoft.Json.Linq;
 
 namespace Apps.Airtable.Actions;
@@ -117,14 +117,11 @@ public class RecordActions : AirtableInvocable
         try
         {
             var files = JsonConvert.DeserializeObject<IEnumerable<FileDto>>(field, _jsonSerializerSettings)!;
-            var downloadedFiles = new List<FileWrapper>();
+            var downloadedFiles = new List<FileReference>();
 
             foreach (var file in files)
             {
-                downloadedFiles.Add(new()
-                {
-                    File = new(new(HttpMethod.Get, file.Url), file.Filename, file.Type)
-                });
+                downloadedFiles.Add(new(new(HttpMethod.Get, file.Url), file.Filename, file.Type));
             }
 
             return new() { Files = downloadedFiles };
