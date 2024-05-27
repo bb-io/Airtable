@@ -11,9 +11,9 @@ namespace Apps.Airtable.DataSourceHandlers;
 
 public class FieldDataSourceHandler : AirtableInvocable, IAsyncDataSourceHandler
 {
-    private readonly FieldIdentifier _field;
+    private readonly FieldAndRecordIdentifier _field;
 
-    public FieldDataSourceHandler(InvocationContext invocationContext, [ActionParameter] FieldIdentifier field) : base(
+    public FieldDataSourceHandler(InvocationContext invocationContext, [ActionParameter] FieldAndRecordIdentifier field) : base(
         invocationContext)
     {
         _field = field;

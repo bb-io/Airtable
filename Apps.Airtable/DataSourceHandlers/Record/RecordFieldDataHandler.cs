@@ -6,7 +6,7 @@ namespace Apps.Airtable.DataSourceHandlers.Record;
 
 public class RecordFieldDataHandler : RecordDataSourceHandler
 {
-    public RecordFieldDataHandler(InvocationContext invocationContext, [ActionParameter] FieldIdentifier field) : base(
+    public RecordFieldDataHandler(InvocationContext invocationContext, [ActionParameter] FieldAndRecordIdentifier field) : base(
         invocationContext, field.TableId)
     {
     }
