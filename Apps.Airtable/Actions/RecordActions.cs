@@ -81,7 +81,7 @@ public class RecordActions : AirtableInvocable
 
     [Action("Get value of text field", Description = "Get the value of a text field (e.g. single line text, " +
                                                        "long text, phone number, email, URL, single select).")]
-    public async Task<FieldValueResponse<string>> GetStringFieldValue([ActionParameter] FieldAndRecordIdentifier fieldIdentifier)
+    public async Task<FieldValueResponse<string>> GetStringFieldValue([ActionParameter] TextFieldAndRecordIdentifier fieldIdentifier)
     {
         var field = await GetFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId, fieldIdentifier.FieldId);
         return new() { Value = field  };
@@ -91,7 +91,7 @@ public class RecordActions : AirtableInvocable
         "Get the value of a number field (e.g. number, currency, percent, " +
         "rating).")]
     public async Task<FieldValueResponse<double?>> GetNumberFieldValue(
-        [ActionParameter] FieldAndRecordIdentifier fieldIdentifier)
+        [ActionParameter] NumberFieldAndRecordIdentifier fieldIdentifier)
     {
         var field = await GetFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId, fieldIdentifier.FieldId);
 
@@ -107,7 +107,7 @@ public class RecordActions : AirtableInvocable
 
     [Action("Get value of date field", Description = "Get the value of a date field.")]
     public async Task<FieldValueResponse<DateTimeOffset?>> GetDateFieldValue(
-        [ActionParameter] FieldAndRecordIdentifier fieldIdentifier)
+        [ActionParameter] DateFieldAndRecordIdentifier fieldIdentifier)
     {
         var field = await GetFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId, fieldIdentifier.FieldId);
 
@@ -122,7 +122,7 @@ public class RecordActions : AirtableInvocable
     }
 
     [Action("Get value of boolean field", Description = "Get the value of a boolean field (e.g. checkbox).")]
-    public async Task<FieldValueResponse<bool>> GetBooleanFieldValue([ActionParameter] FieldAndRecordIdentifier fieldIdentifier)
+    public async Task<FieldValueResponse<bool>> GetBooleanFieldValue([ActionParameter] BoolFieldAndRecordIdentifier fieldIdentifier)
     {
         var field = string.Empty;
         try
@@ -145,7 +145,7 @@ public class RecordActions : AirtableInvocable
     }
 
     [Action("Download files from attachment field", Description = "Download files from an attachment field.")]
-    public async Task<FilesResponse> DownloadFilesFromAttachmentField([ActionParameter] FieldAndRecordIdentifier fieldIdentifier)
+    public async Task<FilesResponse> DownloadFilesFromAttachmentField([ActionParameter] AttachmentFieldAndRecordIdentifier fieldIdentifier)
     {
         var field = await GetFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId, fieldIdentifier.FieldId);
 
