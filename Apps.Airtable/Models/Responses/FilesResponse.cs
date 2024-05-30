@@ -5,7 +5,7 @@ namespace Apps.Airtable.Models.Responses;
 
 public class FilesResponse
 {
-    public IEnumerable<FileWrapper> Files { get; set; }
+    public IEnumerable<FileReference> Files { get; set; }
 }
 
 public class FileWrapper
