@@ -11,5 +11,4 @@ public class RecordResponse
     public DateTime CreatedTime { get; set; }
 
     public Dictionary<string, object> Fields { get; set; }
-
 }
