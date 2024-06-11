@@ -16,7 +16,7 @@ public class BaseWebhookHandler : BaseInvocable, IWebhookEventHandler, IAsyncRen
     private readonly AirtableClient _client;
     private readonly string _bridgePayloadUrl;
 
-    protected BaseWebhookHandler(InvocationContext invocationContext, [WebhookParameter(true)] WebhookConfigRequest webhookConfigRequest) 
+    public BaseWebhookHandler(InvocationContext invocationContext, [WebhookParameter(true)] WebhookConfigRequest webhookConfigRequest) 
         : base(invocationContext)
     {
         _webhookConfig = webhookConfigRequest;
