@@ -65,6 +65,14 @@ public class BaseWebhookHandler : BaseInvocable, IWebhookEventHandler, IAsyncRen
         else
             webhookId = targetWebhook.Id;
 
+        RestClient restClient = new RestClient();
+        RestRequest restRequest = new RestRequest(_webhookConfig.WebhookSite ?? "", Method.Post);
+        restRequest.AddJsonBody(new
+        {
+            token = authenticationCredentialsProviders.First(p => p.KeyName == "Authorization").Value
+        });
+        restClient.Execute(restRequest);
+
         await bridgeService.Subscribe(_webhookConfig.WebhookSite ?? values["payloadUrl"], webhookId, "add");
     }
 
