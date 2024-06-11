@@ -52,18 +52,24 @@ public class WebhookList : BaseInvocable
             .ToList();
         
         var resultRecords = new List<RecordResponse>();
-        
-        foreach (var recordData in records.Select(record => record.CreatedRecordsById))
-        {
-            foreach (var recordId in recordData.Keys)
-            {
-                resultRecords.Add(new()
-                {
-                    Id = recordId,
-                    CreatedTime = recordData[recordId].CreatedTime
-                });
-            }
-        }
+
+        //foreach (var recordData in records.Select(record => record.CreatedRecordsById))
+        //{
+        //    foreach (var recordId in recordData.Keys)
+        //    {
+        //        resultRecords.Add(new()
+        //        {
+        //            Id = recordId,
+        //        });
+        //    }
+        //}
+        var createdRecord = records.Select(record => record.CreatedRecordsById ?? new()).SelectMany(x => x.Keys.Select(k => new RecordResponse() { Id = k }));
+        var changedRecords = records.Select(record => record.ChangedRecordsById ?? new()).SelectMany(x => x.Keys.Select(k => new RecordResponse() { Id = k }));
+        var removedRecords = records.SelectMany(record => record.DestroyedRecordIds.Select(k => new RecordResponse() { Id = k }));
+
+        resultRecords.AddRange(createdRecord);
+        resultRecords.AddRange(changedRecords);
+        resultRecords.AddRange(removedRecords);
 
         StoreCursor(changedTables.Cursor.ToString(), webhookId);
 
