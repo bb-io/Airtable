@@ -5,6 +5,7 @@ using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Authentication;
 using Blackbird.Applications.Sdk.Common.Invocation;
 using Blackbird.Applications.Sdk.Common.Webhooks;
+using Newtonsoft.Json;
 using RestSharp;
 
 namespace Apps.Airtable.Webhooks.Handlers;
@@ -15,7 +16,7 @@ public class BaseWebhookHandler : BaseInvocable, IWebhookEventHandler, IAsyncRen
     private readonly AirtableClient _client;
     private readonly string _bridgePayloadUrl;
 
-    protected BaseWebhookHandler(InvocationContext invocationContext, WebhookConfigRequest webhookConfigRequest) 
+    protected BaseWebhookHandler(InvocationContext invocationContext, [WebhookParameter(true)] WebhookConfigRequest webhookConfigRequest) 
         : base(invocationContext)
     {
         _webhookConfig = webhookConfigRequest;
@@ -33,7 +34,8 @@ public class BaseWebhookHandler : BaseInvocable, IWebhookEventHandler, IAsyncRen
         if (targetWebhook == null)
         {
             var request = new AirtableRequest("", Method.Post, authenticationCredentialsProviders);
-            request.AddJsonBody(new
+
+            var serializedPayload = JsonConvert.SerializeObject(new
             {
                 notificationUrl = _bridgePayloadUrl,
                 specification = new
@@ -48,7 +50,12 @@ public class BaseWebhookHandler : BaseInvocable, IWebhookEventHandler, IAsyncRen
                         }
                     }
                 }
+            },
+            new JsonSerializerSettings
+            {
+                NullValueHandling = NullValueHandling.Ignore
             });
+            request.AddStringBody(serializedPayload, DataFormat.Json);
 
             var createdWebhook = await _client.ExecuteWithErrorHandling<CreatedWebhookDto>(request);
             webhookId = createdWebhook.Id;
