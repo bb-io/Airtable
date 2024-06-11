@@ -30,8 +30,8 @@ public class WebhookList : BaseInvocable
         _credentials = invocationContext.AuthenticationCredentialsProviders;
     }
     
-    [Webhook("On records added", typeof(RecordAddedWebhookHandler),
-        Description = "This webhook is triggered when new records are added.")]
+    [Webhook("On data changed", typeof(RecordAddedWebhookHandler),
+        Description = "This webhook is triggered when data is")]
     public async Task<WebhookResponse<RecordsResponse>> OnRecordsAdded(WebhookRequest request,
         [WebhookParameter] TableIdentifier table)
     {

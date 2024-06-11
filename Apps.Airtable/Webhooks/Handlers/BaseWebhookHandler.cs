@@ -1,4 +1,5 @@
 ﻿using Apps.Airtable.Dtos;
+using Apps.Airtable.Models.Requests;
 using Apps.Airtable.UrlBuilders;
 using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Authentication;
@@ -10,16 +11,14 @@ namespace Apps.Airtable.Webhooks.Handlers;
 
 public class BaseWebhookHandler : BaseInvocable, IWebhookEventHandler, IAsyncRenewableWebhookEventHandler
 {
-    private readonly string _subscriptionEvent;
-    private readonly string _dataType;
+    private readonly WebhookConfigRequest _webhookConfig;
     private readonly AirtableClient _client;
     private readonly string _bridgePayloadUrl;
 
-    protected BaseWebhookHandler(InvocationContext invocationContext, string subscriptionEvent, string dataType) 
+    protected BaseWebhookHandler(InvocationContext invocationContext, WebhookConfigRequest webhookConfigRequest) 
         : base(invocationContext)
     {
-        _subscriptionEvent = subscriptionEvent;
-        _dataType = dataType;
+        _webhookConfig = webhookConfigRequest;
         _client = new(invocationContext.AuthenticationCredentialsProviders, new AirtableWebhookUrlBuilder());
         _bridgePayloadUrl = $"{invocationContext.UriInfo.BridgeServiceUrl.ToString().TrimEnd('/')}/webhooks/{ApplicationConstants.AppName}";
     }
@@ -43,8 +42,9 @@ public class BaseWebhookHandler : BaseInvocable, IWebhookEventHandler, IAsyncRen
                     {
                         filters = new
                         {
-                            dataTypes = new[] { _dataType },
-                            changeTypes = new[] { _subscriptionEvent }
+                            dataTypes = _webhookConfig.DataTypes,
+                            changeTypes = _webhookConfig.ChangeTypes,
+                            fromSources = _webhookConfig.FromSources
                         }
                     }
                 }
@@ -57,8 +57,8 @@ public class BaseWebhookHandler : BaseInvocable, IWebhookEventHandler, IAsyncRen
         }
         else
             webhookId = targetWebhook.Id;
-        
-        await bridgeService.Subscribe(values["payloadUrl"], webhookId, _subscriptionEvent);
+        foreach(var changeType in _webhookConfig.ChangeTypes)
+            await bridgeService.Subscribe(values["payloadUrl"], webhookId, changeType);
     }
 
     [Period(10000)]
@@ -78,7 +78,10 @@ public class BaseWebhookHandler : BaseInvocable, IWebhookEventHandler, IAsyncRen
         var webhookId = targetWebhook.Id;
         
         var bridgeService = new BridgeService(InvocationContext);
-        var webhooksLeft = await bridgeService.Unsubscribe(values["payloadUrl"], webhookId, _subscriptionEvent);
+
+        int webhooksLeft = 0;
+        foreach (var changeType in _webhookConfig.ChangeTypes)
+            webhooksLeft += await bridgeService.Unsubscribe(values["payloadUrl"], webhookId, changeType);
 
         if (webhooksLeft == 0)
         {
@@ -94,8 +97,8 @@ public class BaseWebhookHandler : BaseInvocable, IWebhookEventHandler, IAsyncRen
         var getWebhooksRequest = new AirtableRequest("", Method.Get, authenticationCredentialsProviders);
         var webhooks = await _client.ExecuteWithErrorHandling<WebhookDtoWrapper>(getWebhooksRequest);
         var webhook = webhooks.Webhooks.FirstOrDefault(webhook => webhook.NotificationUrl == _bridgePayloadUrl 
-                                                                  && webhook.Specification.Options.Filters.ChangeTypes.Contains(_subscriptionEvent) 
-                                                                  && webhook.Specification.Options.Filters.DataTypes.Contains(_dataType));
+                                                                  && webhook.Specification.Options.Filters.ChangeTypes.Any(x => _webhookConfig.ChangeTypes.Contains(x)) 
+                                                                  && webhook.Specification.Options.Filters.DataTypes.Any(x => _webhookConfig.DataTypes.Contains(x)));
         return webhook;
     }
 }
