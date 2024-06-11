@@ -65,7 +65,7 @@ public class WebhookList : BaseInvocable
         //}
         var createdRecord = records.Select(record => record.CreatedRecordsById ?? new()).SelectMany(x => x.Keys.Select(k => new RecordResponse() { Id = k }));
         var changedRecords = records.Select(record => record.ChangedRecordsById ?? new()).SelectMany(x => x.Keys.Select(k => new RecordResponse() { Id = k }));
-        var removedRecords = records.SelectMany(record => record.DestroyedRecordIds.Select(k => new RecordResponse() { Id = k }));
+        var removedRecords = records.SelectMany(record => record?.DestroyedRecordIds?.Select(k => new RecordResponse() { Id = k }) ?? new List<RecordResponse>());
 
         resultRecords.AddRange(createdRecord);
         resultRecords.AddRange(changedRecords);
