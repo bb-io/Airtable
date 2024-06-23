@@ -17,5 +17,7 @@ namespace Apps.Airtable.Models.Requests
         [Display("From sources")]
         [StaticDataSource(typeof(FromSourcesDataHandler))]
         public List<string>? FromSources { get; set; }
+
+        public string? WebhookSite { get; set; }
     }
 }
