@@ -65,7 +65,7 @@ public class BaseWebhookHandler : BaseInvocable, IWebhookEventHandler, IAsyncRen
         }
         else
             webhookId = targetWebhook.Id;
-        await bridgeService.Subscribe(values["payloadUrl"], webhookId, _webhookConfig.ChangeType);
+        await bridgeService.Subscribe(values["payloadUrl"], webhookId, "add");
     }
 
     [Period(10000)]
@@ -86,7 +86,7 @@ public class BaseWebhookHandler : BaseInvocable, IWebhookEventHandler, IAsyncRen
         
         var bridgeService = new BridgeService(InvocationContext);
 
-        int webhooksLeft = await bridgeService.Unsubscribe(values["payloadUrl"], webhookId, _webhookConfig.ChangeType);
+        int webhooksLeft = await bridgeService.Unsubscribe(values["payloadUrl"], webhookId, "add");
 
         if (webhooksLeft == 0)
         {
