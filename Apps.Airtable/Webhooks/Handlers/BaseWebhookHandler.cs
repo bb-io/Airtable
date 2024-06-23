@@ -21,7 +21,8 @@ public class BaseWebhookHandler : BaseInvocable, IWebhookEventHandler, IAsyncRen
     {
         _webhookConfig = webhookConfigRequest;
         _client = new(invocationContext.AuthenticationCredentialsProviders, new AirtableWebhookUrlBuilder());
-        _bridgePayloadUrl = $"{invocationContext.UriInfo.BridgeServiceUrl.ToString().TrimEnd('/')}/webhooks/{ApplicationConstants.AppName}";
+        //_bridgePayloadUrl = $"{invocationContext.UriInfo.BridgeServiceUrl.ToString().TrimEnd('/')}/webhooks/{ApplicationConstants.AppName}";
+        _bridgePayloadUrl = $"https://69bf-178-211-106-141.ngrok-free.app/api/webhooks/{ApplicationConstants.AppName}";
     }
 
     public async Task SubscribeAsync(IEnumerable<AuthenticationCredentialsProvider> authenticationCredentialsProviders,
@@ -44,8 +45,8 @@ public class BaseWebhookHandler : BaseInvocable, IWebhookEventHandler, IAsyncRen
                     {
                         filters = new
                         {
-                            dataTypes = _webhookConfig.DataTypes,
-                            changeTypes = _webhookConfig.ChangeTypes,
+                            dataTypes = new[] { _webhookConfig.DataType },
+                            changeTypes = new[] { _webhookConfig.ChangeType },
                             fromSources = _webhookConfig.FromSources
                         }
                     }
@@ -64,8 +65,7 @@ public class BaseWebhookHandler : BaseInvocable, IWebhookEventHandler, IAsyncRen
         }
         else
             webhookId = targetWebhook.Id;
-        foreach(var changeType in _webhookConfig.ChangeTypes)
-            await bridgeService.Subscribe(values["payloadUrl"], webhookId, changeType);
+        await bridgeService.Subscribe(values["payloadUrl"], webhookId, _webhookConfig.ChangeType);
     }
 
     [Period(10000)]
@@ -86,9 +86,7 @@ public class BaseWebhookHandler : BaseInvocable, IWebhookEventHandler, IAsyncRen
         
         var bridgeService = new BridgeService(InvocationContext);
 
-        int webhooksLeft = 0;
-        foreach (var changeType in _webhookConfig.ChangeTypes)
-            webhooksLeft += await bridgeService.Unsubscribe(values["payloadUrl"], webhookId, changeType);
+        int webhooksLeft = await bridgeService.Unsubscribe(values["payloadUrl"], webhookId, _webhookConfig.ChangeType);
 
         if (webhooksLeft == 0)
         {
@@ -104,8 +102,8 @@ public class BaseWebhookHandler : BaseInvocable, IWebhookEventHandler, IAsyncRen
         var getWebhooksRequest = new AirtableRequest("", Method.Get, authenticationCredentialsProviders);
         var webhooks = await _client.ExecuteWithErrorHandling<WebhookDtoWrapper>(getWebhooksRequest);
         var webhook = webhooks.Webhooks.FirstOrDefault(webhook => webhook.NotificationUrl == _bridgePayloadUrl 
-                                                                  && webhook.Specification.Options.Filters.ChangeTypes.Any(x => _webhookConfig.ChangeTypes.Contains(x)) 
-                                                                  && webhook.Specification.Options.Filters.DataTypes.Any(x => _webhookConfig.DataTypes.Contains(x)));
+                                                                  && webhook.Specification.Options.Filters.ChangeTypes.Contains(_webhookConfig.ChangeType) 
+                                                                  && webhook.Specification.Options.Filters.DataTypes.Contains(_webhookConfig.DataType));
         return webhook;
     }
 }
