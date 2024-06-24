@@ -33,8 +33,8 @@ public class WebhookList : BaseInvocable
     }
     
     [Webhook("On data changed", typeof(BaseWebhookHandler),
-        Description = "This webhook is triggered when data is")]
-    public async Task<WebhookResponse<RecordsResponse>> OnRecordsAdded(
+        Description = "This webhook is triggered when data is changed")]
+    public async Task<WebhookResponse<ChangedDataResponse>> OnRecordsAdded(
         WebhookRequest request, 
         [WebhookParameter(true)] WebhookConfigRequest webhookConfigRequest,
         [WebhookParameter] TableIdentifier table)
@@ -51,33 +51,39 @@ public class WebhookList : BaseInvocable
         var records = changedTables.Payloads
             .Select(payload => payload.ChangedTablesById)
             .Where(changedTable => changedTable != null && changedTable.ContainsKey(table.TableId))
-            .Select(changedTable => JsonConvert.DeserializeObject<CreatedDataPayload>
+            .Select(changedTable => JsonConvert.DeserializeObject<ChangedDataPayload>
                 (changedTable[table.TableId].ToString(), _jsonSerializerSettings))
             .ToList();
         
-        var resultRecords = new List<RecordResponse>();
+        var resultRecords = new List<string>();
+        var resultFields = new List<string>();
+        CurrentMetadata changedMetadata = null;
 
-        if(webhookConfigRequest.DataType == "tableData")
+        if (webhookConfigRequest.DataType == "tableData")
         {
             var createdRecord = records.Select(record => record.CreatedRecordsById ?? new()).SelectMany(x => x.Keys.Select(k => new RecordResponse() { Id = k }));
             var changedRecords = records.Select(record => record.ChangedRecordsById ?? new()).SelectMany(x => x.Keys.Select(k => new RecordResponse() { Id = k }));
             var removedRecords = records.SelectMany(record => record?.DestroyedRecordIds?.Select(k => new RecordResponse() { Id = k }) ?? new List<RecordResponse>());
 
             if(webhookConfigRequest.ChangeType == "add")
-                resultRecords.AddRange(createdRecord);
+                resultRecords.AddRange(createdRecord.Select(x => x.Id));
             else if (webhookConfigRequest.ChangeType == "update")
-                resultRecords.AddRange(changedRecords);
+                resultRecords.AddRange(changedRecords.Select(x => x.Id));
             else if (webhookConfigRequest.ChangeType == "remove")
-                resultRecords.AddRange(removedRecords);
+                resultRecords.AddRange(removedRecords.Select(x => x.Id));
         }
         else if(webhookConfigRequest.DataType == "tableFields")
         {
             if (webhookConfigRequest.ChangeType == "add")
-                resultRecords.AddRange(records.Select(record => record.CreatedFieldsById ?? new()).SelectMany(x => x.Keys.Select(k => new RecordResponse() { Id = k })));
+                resultFields.AddRange(records.Select(record => record.CreatedFieldsById ?? new()).SelectMany(x => x.Keys));
             else if (webhookConfigRequest.ChangeType == "update")
-                resultRecords.AddRange(records.Select(record => record.ChangedFieldsById ?? new()).SelectMany(x => x.Keys.Select(k => new RecordResponse() { Id = k })));
+                resultFields.AddRange(records.Select(record => record.ChangedFieldsById ?? new()).SelectMany(x => x.Keys));
             else if (webhookConfigRequest.ChangeType == "remove")
-                resultRecords.AddRange(records.SelectMany(record => record.DestroyedFieldsIds).Select(k => new RecordResponse() { Id = k }).ToList());
+                resultFields.AddRange(records.SelectMany(record => record.DestroyedFieldsIds));
+        }
+        else if(webhookConfigRequest.DataType == "tableMetadata")
+        {
+            changedMetadata = records.LastOrDefault().ChangedMetadata.Current;
         }
         
         StoreCursor(changedTables.Cursor.ToString(), webhookId);
@@ -88,7 +94,9 @@ public class WebhookList : BaseInvocable
             Result = new()
             {
                 TableId = table.TableId,
-                Records = resultRecords
+                ChangedRecords = resultRecords,
+                ChangedFields = resultFields,
+                ChangedMetadata = changedMetadata
             }
         };
     }
