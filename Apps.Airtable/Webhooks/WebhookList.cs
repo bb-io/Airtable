@@ -1,6 +1,8 @@
-﻿using System.Net;
+﻿using System.Collections.Generic;
+using System.Net;
 using Apps.Airtable.Dtos;
 using Apps.Airtable.Models.Identifiers;
+using Apps.Airtable.Models.Requests;
 using Apps.Airtable.UrlBuilders;
 using Apps.Airtable.Webhooks.Handlers;
 using Apps.Airtable.Webhooks.Payload;
@@ -31,11 +33,13 @@ public class WebhookList : BaseInvocable
     }
     
     [Webhook("On data changed", typeof(BaseWebhookHandler),
-        Description = "This webhook is triggered when data is")]
-    public async Task<WebhookResponse<RecordsResponse>> OnRecordsAdded(WebhookRequest request,
+        Description = "This webhook is triggered when data is changed")]
+    public async Task<WebhookResponse<ChangedDataResponse>> OnRecordsAdded(
+        WebhookRequest request, 
+        [WebhookParameter(true)] WebhookConfigRequest webhookConfigRequest,
         [WebhookParameter] TableIdentifier table)
     {
-        var (changedTables, webhookId) = await ProcessWebhookRequest<ChangedTablesPayload>(request);
+        var (changedTables, webhookId) = await ProcessWebhookRequest<ChangedItemWrapperPayload>(request);
 
         if (!changedTables.Payloads.Any(p => p.ChangedTablesById != null && p.ChangedTablesById.ContainsKey(table.TableId)))
             return new()
@@ -47,30 +51,41 @@ public class WebhookList : BaseInvocable
         var records = changedTables.Payloads
             .Select(payload => payload.ChangedTablesById)
             .Where(changedTable => changedTable != null && changedTable.ContainsKey(table.TableId))
-            .Select(changedTable => JsonConvert.DeserializeObject<CreatedRecordsPayload>
+            .Select(changedTable => JsonConvert.DeserializeObject<ChangedDataPayload>
                 (changedTable[table.TableId].ToString(), _jsonSerializerSettings))
             .ToList();
         
-        var resultRecords = new List<RecordResponse>();
+        var resultRecords = new List<string>();
+        var resultFields = new List<string>();
+        CurrentMetadata changedMetadata = null;
 
-        //foreach (var recordData in records.Select(record => record.CreatedRecordsById))
-        //{
-        //    foreach (var recordId in recordData.Keys)
-        //    {
-        //        resultRecords.Add(new()
-        //        {
-        //            Id = recordId,
-        //        });
-        //    }
-        //}
-        var createdRecord = records.Select(record => record.CreatedRecordsById ?? new()).SelectMany(x => x.Keys.Select(k => new RecordResponse() { Id = k }));
-        var changedRecords = records.Select(record => record.ChangedRecordsById ?? new()).SelectMany(x => x.Keys.Select(k => new RecordResponse() { Id = k }));
-        var removedRecords = records.SelectMany(record => record?.DestroyedRecordIds?.Select(k => new RecordResponse() { Id = k }) ?? new List<RecordResponse>());
+        if (webhookConfigRequest.DataType == "tableData")
+        {
+            var createdRecord = records.Select(record => record.CreatedRecordsById ?? new()).SelectMany(x => x.Keys.Select(k => new RecordResponse() { Id = k }));
+            var changedRecords = records.Select(record => record.ChangedRecordsById ?? new()).SelectMany(x => x.Keys.Select(k => new RecordResponse() { Id = k }));
+            var removedRecords = records.SelectMany(record => record?.DestroyedRecordIds?.Select(k => new RecordResponse() { Id = k }) ?? new List<RecordResponse>());
 
-        resultRecords.AddRange(createdRecord);
-        resultRecords.AddRange(changedRecords);
-        resultRecords.AddRange(removedRecords);
-
+            if(webhookConfigRequest.ChangeType == "add")
+                resultRecords.AddRange(createdRecord.Select(x => x.Id));
+            else if (webhookConfigRequest.ChangeType == "update")
+                resultRecords.AddRange(changedRecords.Select(x => x.Id));
+            else if (webhookConfigRequest.ChangeType == "remove")
+                resultRecords.AddRange(removedRecords.Select(x => x.Id));
+        }
+        else if(webhookConfigRequest.DataType == "tableFields")
+        {
+            if (webhookConfigRequest.ChangeType == "add")
+                resultFields.AddRange(records.Select(record => record.CreatedFieldsById ?? new()).SelectMany(x => x.Keys));
+            else if (webhookConfigRequest.ChangeType == "update")
+                resultFields.AddRange(records.Select(record => record.ChangedFieldsById ?? new()).SelectMany(x => x.Keys));
+            else if (webhookConfigRequest.ChangeType == "remove")
+                resultFields.AddRange(records.SelectMany(record => record.DestroyedFieldsIds));
+        }
+        else if(webhookConfigRequest.DataType == "tableMetadata")
+        {
+            changedMetadata = records.LastOrDefault().ChangedMetadata.Current;
+        }
+        
         StoreCursor(changedTables.Cursor.ToString(), webhookId);
 
         return new()
@@ -79,7 +94,9 @@ public class WebhookList : BaseInvocable
             Result = new()
             {
                 TableId = table.TableId,
-                Records = resultRecords
+                ChangedRecords = resultRecords,
+                ChangedFields = resultFields,
+                ChangedMetadata = changedMetadata
             }
         };
     }

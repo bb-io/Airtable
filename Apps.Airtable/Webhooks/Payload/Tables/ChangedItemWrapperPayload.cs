@@ -1,6 +1,6 @@
 ﻿namespace Apps.Airtable.Webhooks.Payload.Tables;
 
-public class ChangedTablesPayload : BaseTablePayload
+public class ChangedItemWrapperPayload : BaseTablePayload
 {
     public IEnumerable<ChangedTablesWrapper> Payloads { get; set; }
 }

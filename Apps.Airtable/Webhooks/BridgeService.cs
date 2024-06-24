@@ -2,6 +2,7 @@
 using Apps.Airtable.Webhooks.Payload;
 using Blackbird.Applications.Sdk.Common.Invocation;
 using RestSharp;
+using static System.Net.WebRequestMethods;
 
 namespace Apps.Airtable.Webhooks;
 
@@ -14,7 +15,7 @@ public class BridgeService
     public BridgeService(InvocationContext invocationContext)
     {
         _bridgeClient =
-            new(new RestClientOptions($"{invocationContext.UriInfo.BridgeServiceUrl.ToString().TrimEnd('/')}"));
+        new(new RestClientOptions($"{invocationContext.UriInfo.BridgeServiceUrl.ToString().TrimEnd('/')}"));
     }
 
     public async Task Subscribe(string url, string id, string subscriptionEvent)

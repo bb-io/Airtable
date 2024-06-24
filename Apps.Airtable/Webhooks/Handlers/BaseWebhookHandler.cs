@@ -44,8 +44,8 @@ public class BaseWebhookHandler : BaseInvocable, IWebhookEventHandler, IAsyncRen
                     {
                         filters = new
                         {
-                            dataTypes = _webhookConfig.DataTypes,
-                            changeTypes = _webhookConfig.ChangeTypes,
+                            dataTypes = new[] { _webhookConfig.DataType },
+                            changeTypes = new[] { _webhookConfig.ChangeType },
                             fromSources = _webhookConfig.FromSources
                         }
                     }
@@ -64,18 +64,7 @@ public class BaseWebhookHandler : BaseInvocable, IWebhookEventHandler, IAsyncRen
         }
         else
             webhookId = targetWebhook.Id;
-
-        if (!string.IsNullOrEmpty(_webhookConfig.WebhookSite))
-        {
-            RestClient restClient = new RestClient();
-            RestRequest restRequest = new RestRequest(_webhookConfig.WebhookSite ?? "", Method.Post);
-            restRequest.AddJsonBody(new
-            {
-                token = authenticationCredentialsProviders.First(p => p.KeyName == "Authorization").Value
-            });
-            restClient.Execute(restRequest);
-        }
-        await bridgeService.Subscribe(_webhookConfig.WebhookSite ?? values["payloadUrl"], webhookId, "add");
+        await bridgeService.Subscribe(values["payloadUrl"], webhookId, "add");
     }
 
     [Period(10000)]
@@ -96,7 +85,7 @@ public class BaseWebhookHandler : BaseInvocable, IWebhookEventHandler, IAsyncRen
         
         var bridgeService = new BridgeService(InvocationContext);
 
-        int webhooksLeft = await bridgeService.Unsubscribe(_webhookConfig.WebhookSite ?? values["payloadUrl"], webhookId, "add");
+        int webhooksLeft = await bridgeService.Unsubscribe(values["payloadUrl"], webhookId, "add");
 
         if (webhooksLeft == 0)
         {
@@ -112,8 +101,8 @@ public class BaseWebhookHandler : BaseInvocable, IWebhookEventHandler, IAsyncRen
         var getWebhooksRequest = new AirtableRequest("", Method.Get, authenticationCredentialsProviders);
         var webhooks = await _client.ExecuteWithErrorHandling<WebhookDtoWrapper>(getWebhooksRequest);
         var webhook = webhooks.Webhooks.FirstOrDefault(webhook => webhook.NotificationUrl == _bridgePayloadUrl 
-                                                                  && webhook.Specification.Options.Filters.ChangeTypes.Any(x => _webhookConfig.ChangeTypes.Contains(x)) 
-                                                                  && webhook.Specification.Options.Filters.DataTypes.Any(x => _webhookConfig.DataTypes.Contains(x)));
+                                                                  && webhook.Specification.Options.Filters.ChangeTypes.Contains(_webhookConfig.ChangeType) 
+                                                                  && webhook.Specification.Options.Filters.DataTypes.Contains(_webhookConfig.DataType));
         return webhook;
     }
 }

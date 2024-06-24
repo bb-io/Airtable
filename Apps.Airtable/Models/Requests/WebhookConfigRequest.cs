@@ -6,13 +6,13 @@ namespace Apps.Airtable.Models.Requests
 {
     public class WebhookConfigRequest
     {
-        [Display("Data types")]
+        [Display("Data type")]
         [StaticDataSource(typeof(DataTypeDataHandler))]
-        public List<string> DataTypes { get; set; }
+        public string DataType { get; set; }
 
-        [Display("Change types")]
+        [Display("Change type")]
         [StaticDataSource(typeof(ChangeTypeDataHandler))]
-        public List<string> ChangeTypes { get; set; }
+        public string ChangeType { get; set; }
 
         [Display("From sources")]
         [StaticDataSource(typeof(FromSourcesDataHandler))]
