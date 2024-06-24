@@ -14,13 +14,11 @@ public class OAuth2AuthorizeService : BaseInvocable, IOAuth2AuthorizeService
     public string GetAuthorizationUrl(Dictionary<string, string> values)
     {
         const string oauthUrl = "https://airtable.com/oauth2/v1/authorize";
-        //var bridgeOauthUrl = $"{InvocationContext.UriInfo.BridgeServiceUrl.ToString().TrimEnd('/')}/oauth";
-        var bridgeOauthUrl = $"https://bridge.blackbird.io/api/oauth";
+        var bridgeOauthUrl = $"{InvocationContext.UriInfo.BridgeServiceUrl.ToString().TrimEnd('/')}/oauth";
         var parameters = new Dictionary<string, string>
         {
             { "client_id", ApplicationConstants.ClientId},
-            //{ "redirect_uri", $"{InvocationContext.UriInfo.BridgeServiceUrl.ToString().TrimEnd('/')}/AuthorizationCode" },
-            { "redirect_uri", $"https://bridge.blackbird.io/api/AuthorizationCode" },
+            { "redirect_uri", $"{InvocationContext.UriInfo.BridgeServiceUrl.ToString().TrimEnd('/')}/AuthorizationCode" },
             { "response_type", "code"},
             { "state", values["state"] },
             { "scope", ApplicationConstants.Scope },

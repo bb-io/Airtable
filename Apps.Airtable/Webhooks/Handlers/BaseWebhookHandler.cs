@@ -21,8 +21,7 @@ public class BaseWebhookHandler : BaseInvocable, IWebhookEventHandler, IAsyncRen
     {
         _webhookConfig = webhookConfigRequest;
         _client = new(invocationContext.AuthenticationCredentialsProviders, new AirtableWebhookUrlBuilder());
-        //_bridgePayloadUrl = $"{invocationContext.UriInfo.BridgeServiceUrl.ToString().TrimEnd('/')}/webhooks/{ApplicationConstants.AppName}";
-        _bridgePayloadUrl = $"https://69bf-178-211-106-141.ngrok-free.app/api/webhooks/{ApplicationConstants.AppName}";
+        _bridgePayloadUrl = $"{invocationContext.UriInfo.BridgeServiceUrl.ToString().TrimEnd('/')}/webhooks/{ApplicationConstants.AppName}";
     }
 
     public async Task SubscribeAsync(IEnumerable<AuthenticationCredentialsProvider> authenticationCredentialsProviders,

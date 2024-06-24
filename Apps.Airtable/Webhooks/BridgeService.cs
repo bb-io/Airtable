@@ -15,8 +15,7 @@ public class BridgeService
     public BridgeService(InvocationContext invocationContext)
     {
         _bridgeClient =
-        //new(new RestClientOptions($"{invocationContext.UriInfo.BridgeServiceUrl.ToString().TrimEnd('/')}"));
-            new(new RestClientOptions($"https://69bf-178-211-106-141.ngrok-free.app/api"));
+        new(new RestClientOptions($"{invocationContext.UriInfo.BridgeServiceUrl.ToString().TrimEnd('/')}"));
     }
 
     public async Task Subscribe(string url, string id, string subscriptionEvent)
