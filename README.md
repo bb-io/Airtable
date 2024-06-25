@@ -53,9 +53,22 @@ Before you can connect you need to make sure that:
 
 ## Events
 
-### Records
+- **On data changed** This webhook is triggered when any data is added/updated/removed (depends on input parameters the user chooses).
 
-- **On records added** This webhook is triggered when new records are added.
+We added extra logic on top of existing Airtable webhooks to avoid duplication of events. But still there is possibility of duplicated events.
+According to Airtable documentation: 
+`Notification pings are at-least-once. That is, we guarantee that for every change, one notification will be generated, but spurious notifications (when there are no new changes) are also possible.`<br>
+[Airtable documentation](https://airtable.com/developers/web/api/webhooks-overview)
+
+Important: Airtable allows only 2 webhooks for one oauth connection at the same time. This means that for one oauth connection in Blackbird you can create only 2 birds with webhooks with different input parameters. If you will try to create third bird with different inputs in Airtable webhook you will get an error during publishing. 
+
+## Example 
+
+Here is an example of how you can use the Airtable app in a workflow:
+
+![example](image/README/example.png)
+
+In this example, the workflow starts with the **On data changed** event, which triggers when any data added to specific table in Airtable. The input paramaters are: Data type - "Table data", Change type - "On add". Then, the workflow uses the **Get value of text field** action to get text content of field we need. In the next step we translate this text via `DeepL` and then send the translated text to Slack channel.
 
 ## Feedback
 
