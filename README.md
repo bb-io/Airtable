@@ -57,7 +57,7 @@ Before you can connect you need to make sure that:
 
 We added extra logic on top of existing Airtable webhooks to avoid duplication of events. But still there is possibility of duplicated events.
 According to Airtable documentation: 
-`Notification pings are at-least-once. That is, we guarantee that for every change, one notification will be generated, but spurious notifications (when there are no new changes) are also possible.`<br>
+`Notification pings are at-least-once. That is, we guarantee that for every change, one notification will be generated, but spurious notifications (when there are no new changes) are also possible.`
 [Airtable documentation](https://airtable.com/developers/web/api/webhooks-overview)
 
 Important: Airtable allows only 2 webhooks for one oauth connection at the same time. This means that for one oauth connection in Blackbird you can create only 2 birds with webhooks with different input parameters. If you will try to create third bird with different inputs in Airtable webhook you will get an error during publishing. 
