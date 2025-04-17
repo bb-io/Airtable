@@ -17,7 +17,7 @@ Before you can connect you need to make sure that:
 
 ## Connecting
 
-1. Navigate to apps and search for Airtable. If you cannot find Airtable then click _Add App_ in the top right corner, select Airtable and add the app to your Blackbird environment.
+1. Navigate to Apps, and identify the **Airtable** app. You can use search to find it.
 2. Click _Add Connection_.
 3. Name your connection for future reference e.g. 'My Airtable connection'.
 4. Fill in the Base ID to the base you want to connect in your Airtable instance. In Airtable, each database is called a "base," and each base has a unique identifier known as the "base ID." You can find the base ID in the URL of your Airtable base when you are viewing it in the browser. The base ID is the alphanumeric string that appears after "https://airtable.com/" and before "/base".
