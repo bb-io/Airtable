@@ -21,12 +21,6 @@ public class AirtableApplication : BaseInvocable, IApplication, ICategoryProvide
         _typesInstances = CreateTypesInstances();
     }
 
-    public string Name
-    {
-        get => "Airtable";
-        set { }
-    }
-
     public T GetInstance<T>()
     {
         if (!_typesInstances.TryGetValue(typeof(T), out var value))

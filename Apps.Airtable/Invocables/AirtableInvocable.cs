@@ -2,6 +2,7 @@ using Apps.Airtable.Dtos;
 using Apps.Airtable.UrlBuilders;
 using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Authentication;
+using Blackbird.Applications.Sdk.Common.Exceptions;
 using Blackbird.Applications.Sdk.Common.Invocation;
 using RestSharp;
 
@@ -28,7 +29,7 @@ public class AirtableInvocable : BaseInvocable
 
         var table = tables.Tables.FirstOrDefault(x => x.Id == tableId);
 
-        if (table == null) throw new Exception($"Could not find table with ID {tableId}");
+        if (table == null) throw new PluginMisconfigurationException($"Could not find table with ID {tableId}");
 
         return table.PrimaryFieldId;
     }
