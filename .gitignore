@@ -367,3 +367,4 @@ MigrationBackup/
 FodyWeavers.xsd
 /ConsoleApp1
 /Tests.Airtable/Base/appsettings.json
+/Tests.Airtable/appsettings.json
