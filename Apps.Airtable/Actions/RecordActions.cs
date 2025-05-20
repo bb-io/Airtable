@@ -14,6 +14,7 @@ using Newtonsoft.Json;
 using Apps.Airtable.Invocables;
 using Blackbird.Applications.Sdk.Common.Files;
 using Newtonsoft.Json.Linq;
+using Blackbird.Applications.Sdk.Common.Exceptions;
 
 namespace Apps.Airtable.Actions;
 
@@ -101,7 +102,7 @@ public class RecordActions : AirtableInvocable
         }
         catch (FormatException)
         {
-            throw new($"Provided field is not a number type. Actual field value: {field}");
+            throw new PluginMisconfigurationException($"Provided field is not a number type. Actual field value: {field}");
         }
     }
 
@@ -117,7 +118,7 @@ public class RecordActions : AirtableInvocable
         }
         catch (FormatException)
         {
-            throw new($"Provided field is not a date type. Actual field value: {field}");
+            throw new PluginMisconfigurationException($"Provided field is not a date type. Actual field value: {field}");
         }
     }
 
@@ -133,14 +134,14 @@ public class RecordActions : AirtableInvocable
         }
         catch (FormatException)
         {
-            throw new($"Provided field is not a boolean type. Actual field value: {field}");
+            throw new PluginMisconfigurationException($"Provided field is not a boolean type. Actual field value: {field}");
         }
         catch (Exception ex)
         {
             if (ex.Message == ErrorMessages.EmptyRecordField)
                 return new() { Value = false };
 
-            throw;
+            throw new PluginApplicationException(ex.Message);
         }
     }
 
@@ -164,7 +165,7 @@ public class RecordActions : AirtableInvocable
         catch (Exception ex)
         {
             InvocationContext.Logger?.LogError.Invoke($"Airtable field files download error. Exception: {ex}", null);
-            throw new($"Provided field is not a file type. Actual field value: {field}");
+            throw new PluginMisconfigurationException($"Provided field is not a file type. Actual field value: {field}");
         }
     }
 
@@ -179,13 +180,11 @@ public class RecordActions : AirtableInvocable
         [ActionParameter] [Display("New value")]
         string newValue)
     {
-        var jsonBody = $@"
-        {{
-            ""fields"": {{
-                ""{fieldIdentifier.FieldId}"": ""{newValue}""
-            }},
-            ""returnFieldsByFieldId"": true
-        }}";
+        var jsonBody = new
+        {
+            fields = new Dictionary<string, string> { { fieldIdentifier.FieldId, newValue } },
+            returnFieldsByFieldId = true
+        };
         return UpdateFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId,
             fieldIdentifier.FieldId, jsonBody);
     }
@@ -197,13 +196,11 @@ public class RecordActions : AirtableInvocable
         [ActionParameter] [Display("New value")]
         double newValue)
     {
-        var jsonBody = $@"
-        {{
-            ""fields"": {{
-                ""{fieldIdentifier.FieldId}"": {newValue}
-            }},
-            ""returnFieldsByFieldId"": true
-        }}";
+        var jsonBody = new
+        {
+            fields = new Dictionary<string, double> { { fieldIdentifier.FieldId, newValue } },
+            returnFieldsByFieldId = true
+        };
         return UpdateFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId,
             fieldIdentifier.FieldId, jsonBody);
     }
@@ -213,13 +210,12 @@ public class RecordActions : AirtableInvocable
         [ActionParameter] [Display("New value")]
         DateTime newValue)
     {
-        var jsonBody = $@"
-        {{
-            ""fields"": {{
-                ""{fieldIdentifier.FieldId}"": ""{newValue:yyyy-MM-dd}""
-            }},
-            ""returnFieldsByFieldId"": true
-        }}";
+        var jsonBody = new
+        {
+            fields = new Dictionary<string, DateTime> { { fieldIdentifier.FieldId, newValue } },
+            returnFieldsByFieldId = true,
+            typecast = true,
+        };
         return UpdateFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId,
             fieldIdentifier.FieldId, jsonBody);
     }
@@ -229,13 +225,11 @@ public class RecordActions : AirtableInvocable
         [ActionParameter] [Display("New value")]
         bool newValue)
     {
-        var jsonBody = $@"
-        {{
-            ""fields"": {{
-                ""{fieldIdentifier.FieldId}"": {newValue.ToString().ToLowerInvariant()}
-            }},
-            ""returnFieldsByFieldId"": true
-        }}";
+        var jsonBody = new
+        {
+            fields = new Dictionary<string, bool> { { fieldIdentifier.FieldId, newValue } },
+            returnFieldsByFieldId = true
+        };
         return UpdateFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId,
             fieldIdentifier.FieldId, jsonBody);
     }
@@ -282,7 +276,7 @@ public class RecordActions : AirtableInvocable
         {
             var record = await ContentClient.ExecuteWithErrorHandling<RecordResponse>(request);
             if (!record.Fields.TryGetValue(fieldId, out var field))
-                throw new(ErrorMessages.EmptyRecordField);
+                throw new PluginMisconfigurationException(ErrorMessages.EmptyRecordField);
 
             var fieldSchema = table.Fields.First(x => x.Id == fieldId);
             return fieldSchema.Type switch
@@ -294,14 +288,14 @@ public class RecordActions : AirtableInvocable
         catch (Exception ex)
         {
             if (ex.Message == "NOT_FOUND")
-                throw new(ErrorMessages.RecordNotFound);
+                throw new PluginMisconfigurationException(ErrorMessages.RecordNotFound);
 
-            throw;
+            throw new PluginApplicationException(ex.Message);
         }
     }
 
     private async Task UpdateFieldValue(string tableId, string recordId, string fieldId,
-        string jsonBody)
+        object jsonBody)
     {
         await GetFieldTable(tableId, fieldId);
         var request = new AirtableRequest($"/{tableId}/{recordId}", Method.Patch, _credentials)
@@ -313,9 +307,9 @@ public class RecordActions : AirtableInvocable
         catch (Exception ex)
         {
             if (ex.Message == "NOT_FOUND")
-                throw new(ErrorMessages.RecordNotFound);
+                throw new PluginMisconfigurationException(ErrorMessages.RecordNotFound);
 
-            throw;
+            throw new PluginApplicationException(ex.Message);
         }
     }
 
@@ -326,12 +320,12 @@ public class RecordActions : AirtableInvocable
         var table = tables.Tables.FirstOrDefault(table => table.Id == tableId || table.Name == tableId);
 
         if (table is null)
-            throw new(ErrorMessages.TableNotFound);
+            throw new PluginMisconfigurationException(ErrorMessages.TableNotFound);
 
         var field = table.Fields.FirstOrDefault(field => field.Id == fieldId);
 
         if (field == null)
-            throw new(ErrorMessages.FieldDoesNotExist);
+            throw new PluginMisconfigurationException(ErrorMessages.FieldDoesNotExist);
 
         return table;
     }

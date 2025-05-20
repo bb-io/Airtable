@@ -1,4 +1,5 @@
 ﻿using Apps.Airtable.Dtos;
+using Apps.Airtable.Models.Identifiers;
 using Apps.Airtable.Models.Requests;
 using Apps.Airtable.UrlBuilders;
 using Blackbird.Applications.Sdk.Common;
@@ -15,13 +16,18 @@ public class BaseWebhookHandler : BaseInvocable, IWebhookEventHandler, IAsyncRen
     private readonly WebhookConfigRequest _webhookConfig;
     private readonly AirtableClient _client;
     private readonly string _bridgePayloadUrl;
+    private readonly TableIdentifier _tableIdentifier;
 
-    public BaseWebhookHandler(InvocationContext invocationContext, [WebhookParameter(true)] WebhookConfigRequest webhookConfigRequest) 
+    public BaseWebhookHandler(
+        InvocationContext invocationContext, 
+        [WebhookParameter(true)] TableIdentifier table, 
+        [WebhookParameter(true)] WebhookConfigRequest webhookConfigRequest) 
         : base(invocationContext)
     {
         _webhookConfig = webhookConfigRequest;
         _client = new(invocationContext.AuthenticationCredentialsProviders, new AirtableWebhookUrlBuilder());
         _bridgePayloadUrl = $"{invocationContext.UriInfo.BridgeServiceUrl.ToString().TrimEnd('/')}/webhooks/{ApplicationConstants.AppName}";
+        _tableIdentifier = table;
     }
 
     public async Task SubscribeAsync(IEnumerable<AuthenticationCredentialsProvider> authenticationCredentialsProviders,
@@ -44,6 +50,7 @@ public class BaseWebhookHandler : BaseInvocable, IWebhookEventHandler, IAsyncRen
                     {
                         filters = new
                         {
+                            recordChangeScope = _tableIdentifier.TableId,
                             dataTypes = new[] { _webhookConfig.DataType },
                             changeTypes = new[] { _webhookConfig.ChangeType },
                             fromSources = _webhookConfig.FromSources

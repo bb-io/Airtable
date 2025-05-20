@@ -2,6 +2,7 @@
 using Apps.Airtable.Models.Responses;
 using Apps.Airtable.UrlBuilders;
 using Blackbird.Applications.Sdk.Common.Authentication;
+using Blackbird.Applications.Sdk.Common.Exceptions;
 using Blackbird.Applications.Sdk.Utils.Extensions.String;
 using Blackbird.Applications.Sdk.Utils.RestSharp;
 using Newtonsoft.Json;
@@ -48,12 +49,12 @@ public class AirtableClient : BlackBirdRestClient
         try
         {
             var error = JsonConvert.DeserializeObject<ErrorObjectDtoWrapper>(response.Content, JsonSettings);
-            return new(error.Error.Message);
+            return new PluginApplicationException(error.Error.Message);
         }
         catch (JsonSerializationException)
         {
             var error = JsonConvert.DeserializeObject<ErrorStringDto>(response.Content, JsonSettings);
-            return new(error.Error);
+            return new PluginApplicationException(error.Error);
         }
     }
 }
