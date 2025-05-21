@@ -3,7 +3,6 @@
     public class ChangedRecordData
     {
         public RecordPayload Current { get; set; }
-        public RecordPayload Previous { get; set; }
     }
 
     public class RecordPayload

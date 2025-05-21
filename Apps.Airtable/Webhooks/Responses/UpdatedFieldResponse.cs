@@ -20,9 +20,6 @@ public class ChangedRecord
     [Display("Record ID")]
     public string RecordId { get; set; }
 
-    [Display("Previous value")]
-    public string PreviousValue { get; set; }
-
-    [Display("New value")]
+    [Display("Current value")]
     public string NewValue { get; set; }
 }
