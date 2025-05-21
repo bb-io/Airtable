@@ -102,11 +102,11 @@ public class WebhookList : BaseInvocable
         };
     }
 
-    [Webhook("On field updated", typeof(OnFieldUpdatedHandler),
-    Description = "This webhook is triggered when a particular field has updated")]
-    public async Task<WebhookResponse<UpdatedFieldResponse>> OnFieldUpdated(
+    [Webhook("On cells updated", typeof(OnFieldUpdatedHandler),
+    Description = "This webhook is triggered when one or more cells have been changed")]
+    public async Task<WebhookResponse<UpdatedFieldResponse>> OnCellsUpdated(
         WebhookRequest request,
-        [WebhookParameter] OptionalFieldAndRecordIdentifier fieldAndRecord,
+        [WebhookParameter(true)] OptionalFieldAndRecordIdentifier fieldAndRecord,
         [WebhookParameter][Display("New value")] string? newValue
     )
     {
@@ -143,16 +143,22 @@ public class WebhookList : BaseInvocable
             if (foundNewValue == null) continue;
             if (newValue != null && foundNewValue.ToString() != newValue) continue;
 
-            fields.TryGetValue(fieldAndRecord.FieldId ?? "", out var foundPreviousValue);
             result.ChangedRecords.Add(new ChangedRecord
             {
                 FieldId = fieldAndRecord.FieldId,
                 RecordId = changedRecord.Key,
-                NewValue = foundNewValue.ToString(),
-                PreviousValue = foundPreviousValue?.ToString(),
+                NewValue = foundNewValue.ToString()
             });
         }
-        
+
+        if (!result.ChangedRecords.Any())
+        {
+            return new()
+            {
+                HttpResponseMessage = new(HttpStatusCode.OK),
+                ReceivedWebhookRequestType = WebhookRequestType.Preflight
+            };
+        }        
 
         return new()
         {
