@@ -21,7 +21,7 @@ namespace Tests.Airtable;
 [TestClass]
 public class WebhookSubscriptionTests : TestBase
 {
-    private static string url = "https://webhook.site/072f72ce-be84-4afe-af9d-1a5ad6ffda80";
+    private static string url = "";
     private static string tableId = "tblcoiOOt2k67kTHF";
 
     [TestMethod]
@@ -60,10 +60,19 @@ public class WebhookSubscriptionTests : TestBase
     [TestMethod]
     public async Task ProcessIncomingWebhook()
     {
-        const string webhookId = "achXbXJO96b4KY7JP";
+        const string webhookId = "";
         var client = new AirtableClient(InvocationContext.AuthenticationCredentialsProviders, new AirtableWebhookUrlBuilder());
         var getDataRequest = new AirtableRequest($"/{webhookId}/payloads?cursor=1", Method.Get, InvocationContext.AuthenticationCredentialsProviders);
         var getDataResponse = await client.ExecuteWithErrorHandling(getDataRequest);
         Console.WriteLine(getDataResponse.Content);
+    }
+
+    [TestMethod]
+    public async Task Unsubscribe()
+    {
+        const string webhookId = "";
+        var client = new AirtableClient(InvocationContext.AuthenticationCredentialsProviders, new AirtableWebhookUrlBuilder());
+        var deleteWebhookRequest = new AirtableRequest($"/{webhookId}", Method.Delete, InvocationContext.AuthenticationCredentialsProviders);
+        await client.ExecuteWithErrorHandling(deleteWebhookRequest);
     }
 }
