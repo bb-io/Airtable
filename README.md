@@ -45,15 +45,18 @@ Before you can connect you need to make sure that:
 - **Get value of boolean field** Get the value of a boolean field (e.g. checkbox).
 - **Get value of date field** Get the value of a date field.
 - **Get value of number field** Get the value of a number field (e.g. number, currency, percent, rating).
-- **Get value of string field** Get the value of a string field (e.g. single line text, long text, phone number, email, URL, single select).
+- **Get value of text field** Get the value of a string field (e.g. single line text, long text, phone number, email, URL, single select).
 - **Update value of boolean field** Update the value of a boolean field (e.g. checkbox).
 - **Update value of date field** Update the value of a date field.
 - **Update value of number field** Update the value of a number field (e.g. number, currency, percent, rating).
-- **Update value of string field** Update the value of a string field (e.g. single line text, long text, phone number, email, URL, single select).
+- **Update value of text field** Update the value of a text field (e.g. long text, phone number, email, URL).
+- **Update value of boolean field** Update the value of a single select field.
 
 ## Events
 
-- **On data changed** This webhook is triggered when any data is added/updated/removed (depends on input parameters the user chooses).
+- **On data changed** This event is triggered when any data is added/updated/removed (depends on input parameters the user chooses).
+- **On cells updated** triggers when certain cells specifically update to a new value. This value can be specified.
+- **On select updated** same as the above, except that it provides a useful dropdown for possible values of the select field.
 
 We added extra logic on top of existing Airtable webhooks to avoid duplication of events. But still there is possibility of duplicated events.
 According to Airtable documentation: 

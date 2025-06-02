@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Net;
+using Apps.Airtable.DataSourceHandlers;
 using Apps.Airtable.Dtos;
 using Apps.Airtable.Models.Identifiers;
 using Apps.Airtable.Models.Requests;
@@ -11,6 +12,7 @@ using Apps.Airtable.Webhooks.Payload.Tables;
 using Apps.Airtable.Webhooks.Responses;
 using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Authentication;
+using Blackbird.Applications.Sdk.Common.Dynamic;
 using Blackbird.Applications.Sdk.Common.Invocation;
 using Blackbird.Applications.Sdk.Common.Webhooks;
 using Newtonsoft.Json;
@@ -159,6 +161,78 @@ public class WebhookList : BaseInvocable
                 ReceivedWebhookRequestType = WebhookRequestType.Preflight
             };
         }        
+
+        return new()
+        {
+            HttpResponseMessage = new(HttpStatusCode.OK),
+            Result = result,
+        };
+    }
+
+    [Webhook("On select updated", typeof(OnFieldUpdatedHandler), Description = "This webhook is triggered when a select field changes its status")]
+    public async Task<WebhookResponse<UpdatedFieldResponse>> OnSelectUpdated(
+    WebhookRequest request,
+    [WebhookParameter(true)] OptionalSelectFieldAndRecordIdentifier fieldAndRecord,
+    [WebhookParameter][DataSource(typeof(SingleSelectOptionsHandler))][Display("New value")] string? newValue
+)
+    {
+        var (changedTables, webhookId) = await ProcessWebhookRequest<ChangedItemWrapperPayload>(request);
+
+        if (!changedTables.Payloads.Any(p => p.ChangedTablesById != null && p.ChangedTablesById.ContainsKey(fieldAndRecord.TableId)))
+            return new()
+            {
+                HttpResponseMessage = new(HttpStatusCode.OK),
+                ReceivedWebhookRequestType = WebhookRequestType.Preflight
+            };
+
+        var records = changedTables.Payloads
+            .Select(payload => payload.ChangedTablesById)
+            .Where(changedTable => changedTable != null && changedTable.ContainsKey(fieldAndRecord.TableId))
+            .Select(changedTable => JsonConvert.DeserializeObject<ChangedDataPayload>
+                (changedTable[fieldAndRecord.TableId].ToString(), _jsonSerializerSettings))
+            .ToList();
+
+        var resultFields = new List<string>();
+        CurrentMetadata changedMetadata = null;
+
+        var changedRecords = records.SelectMany(record => record.ChangedRecordsById ?? new());
+
+        StoreCursor(changedTables.Cursor.ToString(), webhookId);
+
+        var result = new UpdatedFieldResponse { ChangedRecords = new List<ChangedRecord>() };
+        foreach (var changedRecord in changedRecords)
+        {
+            if (fieldAndRecord.RecordId != null && changedRecord.Key != fieldAndRecord.RecordId) continue;
+            var fields = changedRecord.Value.Current.CellValuesByFieldId;
+            if (fieldAndRecord.FieldId != null && !fields.ContainsKey(fieldAndRecord.FieldId)) continue;
+            fields.TryGetValue(fieldAndRecord.FieldId ?? "", out var foundNewValue);
+            if (foundNewValue == null) continue;
+
+            try
+            {
+                var newValueDto = JsonConvert.DeserializeObject<ChoiceDto>(foundNewValue?.ToString());
+                foundNewValue = newValueDto?.Name;
+            }
+            catch { }
+
+            if (newValue != null && foundNewValue.ToString() != newValue) continue;
+
+            result.ChangedRecords.Add(new ChangedRecord
+            {
+                FieldId = fieldAndRecord.FieldId,
+                RecordId = changedRecord.Key,
+                NewValue = foundNewValue.ToString()
+            });
+        }
+
+        if (!result.ChangedRecords.Any())
+        {
+            return new()
+            {
+                HttpResponseMessage = new(HttpStatusCode.OK),
+                ReceivedWebhookRequestType = WebhookRequestType.Preflight
+            };
+        }
 
         return new()
         {

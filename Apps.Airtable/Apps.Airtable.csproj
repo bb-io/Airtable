@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <Product>Airtable</Product>
-    <Version>1.4.3</Version>
+    <Version>1.4.4</Version>
     <Description>Cloud-based platform that combines the simplicity of a spreadsheet with the complexity of a database, enabling users to organize and track data in a flexible and user-friendly way.</Description>
     <AssemblyName>Apps.Airtable</AssemblyName>
   </PropertyGroup>

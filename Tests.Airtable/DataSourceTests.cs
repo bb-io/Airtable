@@ -25,4 +25,15 @@ public class DataSourceTests : TestBase
             Console.WriteLine($"{record.Key}: {record.Value}");
         }
     }
+
+    [TestMethod]
+    public async Task SelectOptions()
+    {
+        var handler = new SingleSelectOptionsHandler(InvocationContext, new FieldAndRecordIdentifier { TableId = "tblcoiOOt2k67kTHF", FieldId = "fldAp3aDvIzhxRuyy" });
+        var result = await handler.GetDataAsync(new DataSourceContext { }, CancellationToken.None);
+        foreach (var record in result)
+        {
+            Console.WriteLine($"{record.Key}: {record.Value}");
+        }
+    }
 }
