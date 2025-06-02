@@ -32,7 +32,7 @@ public class TextFieldDataSourceHandler : AirtableInvocable, IAsyncDataSourceHan
         var table = tables.Tables.FirstOrDefault(x => x.Id == _field.TableId);
 
         if (table == null) throw new Exception($"Could not find table with ID {_field.TableId}");
-        var textTypes = new List<string> { "singleLineText", "singleSelect", "multilineText", "phoneNumber", "email", "url", "barcode" };
+        var textTypes = new List<string> { "singleLineText", "singleSelect", "multilineText", "phoneNumber", "email", "url", "barcode", "richText" };
         return table.Fields
             .Where(x => textTypes.Contains(x.Type) && (context.SearchString is null ||
                         x.Name.Contains(context.SearchString, StringComparison.OrdinalIgnoreCase)))
