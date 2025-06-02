@@ -15,6 +15,8 @@ using Apps.Airtable.Invocables;
 using Blackbird.Applications.Sdk.Common.Files;
 using Newtonsoft.Json.Linq;
 using Blackbird.Applications.Sdk.Common.Exceptions;
+using Blackbird.Applications.Sdk.Common.Dynamic;
+using Apps.Airtable.DataSourceHandlers;
 
 namespace Apps.Airtable.Actions;
 
@@ -173,12 +175,23 @@ public class RecordActions : AirtableInvocable
 
     #region Field setters
 
-    [Action("Update value of text field", Description =
-        "Update the value of a text field (e.g. single line text, " +
-        "long text, phone number, email, URL, single select).")]
+    [Action("Update value of text field", Description ="Update the value of a text field (e.g. long text, phone number, email, URL).")]
     public Task UpdateStringFieldValue([ActionParameter] FieldAndRecordIdentifier fieldIdentifier,
         [ActionParameter] [Display("New value")]
         string newValue)
+    {
+        var jsonBody = new
+        {
+            fields = new Dictionary<string, string> { { fieldIdentifier.FieldId, newValue } },
+            returnFieldsByFieldId = true
+        };
+        return UpdateFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId,
+            fieldIdentifier.FieldId, jsonBody);
+    }
+
+    [Action("Update value of select field", Description ="Update the value of a single text field")]
+    public Task UpdateSelectFieldValue([ActionParameter] SelectFieldAndRecordIdentifier fieldIdentifier,
+    [ActionParameter][DataSource(typeof(SingleSelectOptionsHandler))][Display("New value")] string newValue)
     {
         var jsonBody = new
         {
