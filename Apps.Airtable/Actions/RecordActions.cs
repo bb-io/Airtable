@@ -83,45 +83,48 @@ public class RecordActions : AirtableInvocable
     #region Field Getters
 
     [Action("Get value of text field", Description = "Get the value of a text field (e.g. single line text, " +
-                                                       "long text, phone number, email, URL, single select).")]
+                                                "long text, phone number, email, URL, single select).")]
     public async Task<FieldValueResponse<string>> GetStringFieldValue([ActionParameter] TextFieldAndRecordIdentifier fieldIdentifier)
     {
         var field = await GetFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId, fieldIdentifier.FieldId);
-        return new() { Value = field  };
+
+        if (string.IsNullOrEmpty(field))
+            return new() { Value = string.Empty };
+
+        return new() { Value = field };
     }
 
+
     [Action("Get value of number field", Description =
-        "Get the value of a number field (e.g. number, currency, percent, " +
-        "rating).")]
+     "Get the value of a number field (e.g. number, currency, percent, " +
+     "rating).")]
     public async Task<FieldValueResponse<double?>> GetNumberFieldValue(
-        [ActionParameter] NumberFieldAndRecordIdentifier fieldIdentifier)
+     [ActionParameter] NumberFieldAndRecordIdentifier fieldIdentifier)
     {
         var field = await GetFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId, fieldIdentifier.FieldId);
 
-        try
-        {
-            return new() { Value = double.Parse(field) };
-        }
-        catch (FormatException)
-        {
-            throw new PluginMisconfigurationException($"Provided field is not a number type. Actual field value: {field}");
-        }
+        if (string.IsNullOrEmpty(field))
+            return new() { Value = null };
+
+        if (double.TryParse(field, out var result))
+            return new() { Value = result };
+
+        throw new PluginMisconfigurationException($"Provided field is not a number type. Actual field value: {field}");
     }
 
     [Action("Get value of date field", Description = "Get the value of a date field.")]
     public async Task<FieldValueResponse<DateTimeOffset?>> GetDateFieldValue(
-        [ActionParameter] DateFieldAndRecordIdentifier fieldIdentifier)
+    [ActionParameter] DateFieldAndRecordIdentifier fieldIdentifier)
     {
         var field = await GetFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId, fieldIdentifier.FieldId);
 
-        try
-        {
-            return new() { Value = DateTimeOffset.Parse(field) };
-        }
-        catch (FormatException)
-        {
-            throw new PluginMisconfigurationException($"Provided field is not a date type. Actual field value: {field}");
-        }
+        if (string.IsNullOrEmpty(field))
+            return new() { Value = null };
+
+        if (DateTimeOffset.TryParse(field, out var result))
+            return new() { Value = result };
+
+        throw new PluginMisconfigurationException($"Provided field is not a date type. Actual field value: {field}");
     }
 
     [Action("Get value of boolean field", Description = "Get the value of a boolean field (e.g. checkbox).")]
