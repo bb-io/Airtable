@@ -20,7 +20,7 @@ using Apps.Airtable.DataSourceHandlers;
 
 namespace Apps.Airtable.Actions;
 
-[ActionList]
+[ActionList("Records")]
 public class RecordActions : AirtableInvocable
 {
     private readonly IEnumerable<AuthenticationCredentialsProvider> _credentials;
