@@ -2,10 +2,11 @@
 using System.Text.Json;
 using Blackbird.Applications.Sdk.Common;
 using Blackbird.Applications.Sdk.Common.Invocation;
+using Blackbird.Applications.Sdk.Common.Authentication;
 
 namespace Apps.Airtable.Auth.OAuth2;
 
-public class OAuth2TokenService : BaseInvocable, IOAuth2TokenService
+public class OAuth2TokenService : BaseInvocable, IOAuth2TokenService, ITokenRefreshable
 {
     const string TokenUrl = "https://airtable.com/oauth2/v1/token";
     const string ExpiresAtKeyName = "expires_at";
@@ -16,6 +17,19 @@ public class OAuth2TokenService : BaseInvocable, IOAuth2TokenService
 
     public bool IsRefreshToken(Dictionary<string, string> values)
         => values.TryGetValue(ExpiresAtKeyName, out var expireValue) && DateTime.UtcNow > DateTime.Parse(expireValue);
+
+    public int? GetRefreshTokenExprireInMinutes(Dictionary<string, string> values)
+    {
+        if (!values.TryGetValue(ExpiresAtKeyName, out var expireValue))
+            return null;
+
+        if (!DateTime.TryParse(expireValue, out var expireDate))
+            return null;
+
+        var difference = expireDate - DateTime.UtcNow;
+
+        return (int)difference.TotalMinutes - 1;
+    }
 
     public async Task<Dictionary<string, string>> RefreshToken(Dictionary<string, string> values,
         CancellationToken cancellationToken)
@@ -63,7 +77,7 @@ public class OAuth2TokenService : BaseInvocable, IOAuth2TokenService
                                    .ToDictionary(r => r.Key, r => r.Value?.ToString())
                                ?? throw new InvalidOperationException($"Invalid response content: {responseContent}");
         var expiresIn = int.Parse(resultDictionary["expires_in"]);
-        var expiresAt = utcNow.AddSeconds(expiresIn);
+        var expiresAt = utcNow.AddSeconds(expiresIn - 120);
         resultDictionary.Add(ExpiresAtKeyName, expiresAt.ToString());
         return resultDictionary;
     }
