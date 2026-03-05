@@ -87,11 +87,7 @@ public class RecordActions : AirtableInvocable
     public async Task<FieldValueResponse<string>> GetStringFieldValue([ActionParameter] TextFieldAndRecordIdentifier fieldIdentifier)
     {
         var field = await GetFieldValue(fieldIdentifier.TableId, fieldIdentifier.RecordId, fieldIdentifier.FieldId);
-
-        if (string.IsNullOrEmpty(field))
-            return new() { Value = string.Empty };
-
-        return new() { Value = field };
+        return new FieldValueResponse<string> { Value = field ?? string.Empty };
     }
 
 
@@ -285,29 +281,40 @@ public class RecordActions : AirtableInvocable
     private async Task<string> GetFieldValue(string tableId, string recordId, string fieldId)
     {
         var table = await GetFieldTable(tableId, fieldId);
+
         var request = new AirtableRequest($"/{tableId}/{recordId}", Method.Get, _credentials);
         request.AddQueryParameter("returnFieldsByFieldId", "true");
 
+        RecordResponse? record = null;
         try
         {
-            var record = await ContentClient.ExecuteWithErrorHandling<RecordResponse>(request);
-            if (!record.Fields.TryGetValue(fieldId, out var field))
-                throw new PluginMisconfigurationException(ErrorMessages.EmptyRecordField);
-
-            var fieldSchema = table.Fields.First(x => x.Id == fieldId);
-            return fieldSchema.Type switch
-            {
-                "multipleLookupValues" => (field as JArray)!.First().ToString(),
-                _ => field.ToString() ?? String.Empty
-            };
+            record = await ContentClient.ExecuteWithErrorHandling<RecordResponse>(request);
         }
         catch (Exception ex)
         {
-            if (ex.Message == "NOT_FOUND")
-                throw new PluginMisconfigurationException(ErrorMessages.RecordNotFound);
+            if (ex.Message.Contains("NOT_FOUND", StringComparison.OrdinalIgnoreCase))
+                return string.Empty;
 
-            throw new PluginApplicationException(ex.Message);
+            throw;
         }
+
+        if (record is null)
+            return string.Empty;
+
+        if (!record.Fields.TryGetValue(fieldId, out var rawValue))
+            return string.Empty;
+
+        var schema = table.Fields.First(x => x.Id == fieldId);
+
+        return schema.Type switch
+        {
+            "multipleLookupValues" when rawValue is JArray { Count: > 0 } arr
+                => arr[0].ToString() ?? string.Empty,
+
+            "multipleLookupValues" => string.Empty,
+
+            _ => rawValue?.ToString() ?? string.Empty
+        };
     }
 
     private async Task UpdateFieldValue(string tableId, string recordId, string fieldId,

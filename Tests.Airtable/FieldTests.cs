@@ -39,4 +39,17 @@ public class FieldTests : TestBase
         var newValue = "In progress";
         await actions.UpdateStringFieldValue(new FieldAndRecordIdentifier { TableId = "tblcoiOOt2k67kTHF", FieldId = "fldAp3aDvIzhxRuyy", RecordId = "rec8MLQIYWaIDMXGa" }, newValue);
     }
+
+    [TestMethod]
+    public async Task Get_value_to_select_field()
+    {
+        var actions = new RecordActions(InvocationContext);
+
+        var newValue = "In progress";
+        var response = await actions.GetStringFieldValue(new TextFieldAndRecordIdentifier { TableId = "tblGttjQZGEqsQe6k", FieldId = "fldhEMq35kWGDu8L1", RecordId = "rec14f9BgD5psEXu9" });
+
+        Console.WriteLine(Newtonsoft.Json.JsonConvert.SerializeObject(response));
+
+        Assert.IsNotNull(response);
+    }
 }
