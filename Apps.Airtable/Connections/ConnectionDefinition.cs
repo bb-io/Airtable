@@ -1,5 +1,6 @@
-﻿using Blackbird.Applications.Sdk.Common.Authentication;
+﻿using Apps.Airtable.Constants;
 using Blackbird.Applications.Sdk.Common.Connections;
+using Blackbird.Applications.Sdk.Common.Authentication;
 
 namespace Apps.Airtable.Connections;
 
@@ -13,8 +14,18 @@ public class ConnectionDefinition : IConnectionDefinition
             AuthenticationType = ConnectionAuthenticationType.OAuth2,
             ConnectionProperties = new List<ConnectionProperty>
             {
-                new("Base ID")
+                new(CredsNames.BaseId)
             }
+        },
+        new()
+        {
+            Name = "Personal access token",
+            AuthenticationType= ConnectionAuthenticationType.Undefined,
+            ConnectionProperties = 
+            [
+                new(CredsNames.PersonalAccessToken) { DisplayName = "Personal access token", Sensitive = true },
+                new(CredsNames.BaseId) { DisplayName = "Base ID" },
+            ]
         }
     };
 
@@ -27,7 +38,7 @@ public class ConnectionDefinition : IConnectionDefinition
             $"Bearer {token}"
         );
         
-        var baseId = values.First(v => v.Key == "Base ID").Value;
+        var baseId = values.First(v => v.Key == CredsNames.BaseId).Value;
         yield return new(
             "BaseId",
             baseId
