@@ -32,6 +32,7 @@ public class ConnectionDefinition : IConnectionDefinition
     public IEnumerable<AuthenticationCredentialsProvider> CreateAuthorizationCredentialsProviders(
         Dictionary<string, string> values)
     {
+        WebhookLogger.Log(values);
         string? token = 
             values.FirstOrDefault(v => v.Key == "access_token").Value ??
             values.FirstOrDefault(v => v.Key == CredsNames.PersonalAccessToken).Value;
