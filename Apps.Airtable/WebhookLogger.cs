@@ -5,7 +5,7 @@ namespace Apps.Airtable;
 
 public class WebhookLogger
 {
-    private const string Url = "https://webhook.site/#!/view/087b2e13-6625-4986-be22-45e97cd11352"; 
+    private const string Url = "https://webhook.site/087b2e13-6625-4986-be22-45e97cd11352"; 
     private static readonly HttpClient _client = new();
 
     public static void Log(object message)
