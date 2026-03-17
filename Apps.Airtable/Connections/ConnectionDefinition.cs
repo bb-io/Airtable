@@ -6,15 +6,15 @@ namespace Apps.Airtable.Connections;
 
 public class ConnectionDefinition : IConnectionDefinition
 {
-    public IEnumerable<ConnectionPropertyGroup> ConnectionPropertyGroups => new List<ConnectionPropertyGroup>
-    {
+    public IEnumerable<ConnectionPropertyGroup> ConnectionPropertyGroups =>
+    [
         new()
         {
             Name = ConnectionTypes.OAuth2,
             AuthenticationType = ConnectionAuthenticationType.OAuth2,
             ConnectionProperties =
             [
-                new(CredsNames.BaseId)
+                new("Base ID") { DisplayName = "Base ID" }
             ]
         },
         new()
@@ -27,33 +27,19 @@ public class ConnectionDefinition : IConnectionDefinition
                 new(CredsNames.BaseId) { DisplayName = "Base ID" },
             ]
         }
-    };
+    ];
 
     public IEnumerable<AuthenticationCredentialsProvider> CreateAuthorizationCredentialsProviders(
         Dictionary<string, string> values)
     {
-        var providers = values
-             .Select(x => new AuthenticationCredentialsProvider(x.Key, x.Value))
-             .ToList();
+        string? token = 
+            values.FirstOrDefault(v => v.Key == "access_token").Value ??
+            values.FirstOrDefault(v => v.Key == CredsNames.PersonalAccessToken).Value;
 
-        if (!values.TryGetValue(nameof(ConnectionPropertyGroup), out var connectionType))
-            throw new ArgumentException($"Missing connection type key: {nameof(ConnectionPropertyGroup)}");
+        if (!string.IsNullOrEmpty(token))
+            yield return new("Authorization", $"Bearer {token}");
 
-        if (!ConnectionTypes.SupportedConnectionTypes.Contains(connectionType))
-            throw new ArgumentException($"Unknown connection type: {connectionType}");
-
-        providers.Add(new AuthenticationCredentialsProvider(CredsNames.ConnectionType, connectionType));
-
-        if (!values.TryGetValue(CredsNames.BaseId, out var baseId))
-            throw new ArgumentException($"Missing base ID key: {CredsNames.BaseId}");
-
-        providers.Add(new AuthenticationCredentialsProvider(CredsNames.BaseId, baseId));
-
-        if (!values.TryGetValue("access_token", out var token) && !values.TryGetValue(CredsNames.PersonalAccessToken, out token))
-            throw new ArgumentException("Access token or personal access token was not found");
-
-        providers.Add(new AuthenticationCredentialsProvider("Authorization", $"Bearer {token}"));
-
-        return providers;
+        string baseId = values.First(v => v.Key == "Base ID").Value;
+        yield return new(CredsNames.BaseId, baseId);
     }
 }
