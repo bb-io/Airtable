@@ -13,19 +13,34 @@ Airtable is a cloud-based software platform that combines the functionality of a
 Before you can connect you need to make sure that:
 
 - You have an Airtable account.
-- You have created a base (database) in your Airtable account.
+- You have created a base (database) in your Airtable account and have its ID. 
+You can find the base ID in the URL of your Airtable base when viewing the base in your browser. 
+The base ID is the alphanumeric string that appears after "https://airtable.com/" and before "/base".
+- If you want to use the 'Personal access token' connection type, go to the [developer hub](https://airtable.com/create/tokens)
+and create a new token. Make sure to select all available scopes and grant access to the resources you want Blackbird to use.
 
 ## Connecting
 
-1. Navigate to Apps, and identify the **Airtable** app. You can use search to find it.
-2. Click _Add Connection_.
-3. Name your connection for future reference e.g. 'My Airtable connection'.
-4. Fill in the Base ID to the base you want to connect in your Airtable instance. In Airtable, each database is called a "base," and each base has a unique identifier known as the "base ID." You can find the base ID in the URL of your Airtable base when you are viewing it in the browser. The base ID is the alphanumeric string that appears after "https://airtable.com/" and before "/base".
-5. Click Authorize connection.
-6. Follow the instructions from Airtable.
-7. When you return to Blackbird, confirm that the connection has appeared and the status is Connected.
+Navigate to Apps and identify the **Airtable** app. Click _Add Connection_ and name it for future reference e.g. 'My Airtable connection'.
 
-![AirtableBlackbirdConnection](image/README/AirtableBlackbirdConnection.png)
+### OAuth
+
+1. Select the **OAuth** connection type.
+2. Fill in the Base ID to the base you want to connect in your Airtable instance. 
+3. Click _Authorize connection_.
+4. Follow the instructions from Airtable.
+5. When you return to Blackbird, confirm that the connection has appeared and the status is Connected.
+
+![OAuth connection](image/README/oauth.png)
+
+### Personal access token
+
+1. Select the **Personal access token** connection type.
+2. Paste your personal access token.
+3. Fill in the Base ID to the base you want to connect in your Airtable instance.
+4. Click _Connect_.
+
+![PAT connection](image/README/pat.png)
 
 ## Actions
 
