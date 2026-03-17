@@ -24,7 +24,7 @@ public class ConnectionDefinition : IConnectionDefinition
             ConnectionProperties = 
             [
                 new(CredsNames.PersonalAccessToken) { DisplayName = "Personal access token", Sensitive = true },
-                new(CredsNames.BaseId) { DisplayName = "Base ID" },
+                new("Base ID") { DisplayName = "Base ID" },
             ]
         }
     ];
@@ -32,6 +32,7 @@ public class ConnectionDefinition : IConnectionDefinition
     public IEnumerable<AuthenticationCredentialsProvider> CreateAuthorizationCredentialsProviders(
         Dictionary<string, string> values)
     {
+        WebhookLogger.Log("CreateAuthorizationCredentialsProviders");
         WebhookLogger.Log(values);
         string? token = 
             values.FirstOrDefault(v => v.Key == "access_token").Value ??
