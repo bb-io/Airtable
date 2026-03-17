@@ -14,7 +14,7 @@ public class ConnectionDefinition : IConnectionDefinition
             AuthenticationType = ConnectionAuthenticationType.OAuth2,
             ConnectionProperties =
             [
-                new("Base ID") { DisplayName = "Base ID" }
+                new(CredsNames.BaseId) { DisplayName = "Base ID" }
             ]
         },
         new()
@@ -24,7 +24,7 @@ public class ConnectionDefinition : IConnectionDefinition
             ConnectionProperties = 
             [
                 new(CredsNames.PersonalAccessToken) { DisplayName = "Personal access token", Sensitive = true },
-                new("Base ID") { DisplayName = "Base ID" },
+                new(CredsNames.BaseId) { DisplayName = "Base ID" },
             ]
         }
     ];
@@ -39,7 +39,7 @@ public class ConnectionDefinition : IConnectionDefinition
         if (!string.IsNullOrEmpty(token))
             yield return new("Authorization", $"Bearer {token}");
 
-        string baseId = values.First(v => v.Key == "Base ID").Value;
+        string baseId = values.First(v => v.Key == CredsNames.BaseId).Value;
         yield return new(CredsNames.BaseId, baseId);
     }
 }
