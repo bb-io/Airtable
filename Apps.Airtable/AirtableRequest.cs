@@ -12,8 +12,6 @@ public class AirtableRequest : BlackBirdRestRequest
 
     protected override void AddAuth(IEnumerable<AuthenticationCredentialsProvider> authenticationCredentialsProviders)
     {
-        WebhookLogger.Log("AirtableRequest.AddAuth");
-        WebhookLogger.Log(authenticationCredentialsProviders);
         this.AddHeader("Authorization", authenticationCredentialsProviders.First(p => p.KeyName == "Authorization").Value);
     }
 }
