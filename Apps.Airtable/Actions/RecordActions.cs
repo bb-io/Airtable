@@ -33,10 +33,13 @@ public class RecordActions : AirtableInvocable
         _credentials = invocationContext.AuthenticationCredentialsProviders;
     }
 
-    [Action("List records", Description = "List all records in the table.")]
-    public async Task<ListRecordsResponse> ListRecords([ActionParameter] TableIdentifier tableIdentifier)
+    [Action("Search records", Description = "Search all records in the table")]
+    public async Task<ListRecordsResponse> ListRecords([ActionParameter] TableIdentifier tableIdentifier,
+        [ActionParameter] ViewIdentifier View)
     {
         var request = new AirtableRequest($"/{tableIdentifier.TableId}", Method.Get, _credentials);
+        if (View != null && !String.IsNullOrEmpty(View.View))
+        { request.AddQueryParameter("view",View.View); }
         var records = await ContentClient.Paginate<RecordsPaginationResponse, RecordResponse>(request);
 
         return new()
@@ -45,7 +48,7 @@ public class RecordActions : AirtableInvocable
         };
     }
 
-    [Action("Search record", Description = "Search for a single record in the table.")]
+    [Action("Find record", Description = "Find a single record in the table.")]
     public async Task<RecordEntity> SearchRecord([ActionParameter] SingleFieldIdentifier identifier, [ActionParameter][Display("Equals")] string equals)
     {
         var request = new AirtableRequest($"/{identifier.TableId}", Method.Get, _credentials);
