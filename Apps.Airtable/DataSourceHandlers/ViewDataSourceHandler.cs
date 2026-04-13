@@ -1,0 +1,26 @@
+﻿using Apps.Airtable.Dtos;
+using Apps.Airtable.Invocables;
+using Apps.Airtable.UrlBuilders;
+using Blackbird.Applications.Sdk.Common;
+using Blackbird.Applications.Sdk.Common.Dynamic;
+using Blackbird.Applications.Sdk.Common.Invocation;
+using RestSharp;
+
+namespace Apps.Airtable.DataSourceHandlers;
+
+public class ViewDataSourceHandler : AirtableInvocable, IAsyncDataSourceHandler
+{
+    public ViewDataSourceHandler(InvocationContext invocationContext) : base(invocationContext)
+    {
+    }
+
+    public async Task<Dictionary<string, string>> GetDataAsync(DataSourceContext context,
+        CancellationToken cancellationToken)
+    {
+        var request = new AirtableRequest("/views", Method.Get, InvocationContext.AuthenticationCredentialsProviders);
+        var views = await MetaClient.ExecuteWithErrorHandling<ViewDtoWrapper<ViewDto>>(request);
+        return views.Views
+            .Where(v => context.SearchString == null || v.Name.Contains(context.SearchString, StringComparison.OrdinalIgnoreCase))
+            .ToDictionary(v => v.Id, v => v.Name);
+    }
+}

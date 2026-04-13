@@ -46,8 +46,8 @@ Navigate to Apps and identify the **Airtable** app. Click _Add Connection_ and n
 
 ### Records
 
-- **List records** List all records in the table.
-- **Search record** Search for one specific record where the field value is compared to the value you input.
+- **Search records** Search all records in the table.
+- **Find record** Find one specific record where the field value is compared to the value you input.
 - **Add new record** Creates a new record in the table with its primary field filled in. Use the "Update value of field" actions below to fill out the other fields.
 - **Delete record** Deletes a record given the record ID.
 
