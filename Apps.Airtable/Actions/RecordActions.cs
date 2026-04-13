@@ -35,11 +35,11 @@ public class RecordActions : AirtableInvocable
 
     [Action("Search records", Description = "Search all records in the table")]
     public async Task<ListRecordsResponse> ListRecords([ActionParameter] TableIdentifier tableIdentifier,
-        [ActionParameter] ViewIdentifier View)
+        [ActionParameter] string? View)
     {
         var request = new AirtableRequest($"/{tableIdentifier.TableId}", Method.Get, _credentials);
-        if (View != null && !String.IsNullOrEmpty(View.View))
-        { request.AddQueryParameter("view",View.View); }
+        if (!String.IsNullOrEmpty(View))
+        { request.AddQueryParameter("view",View); }
         var records = await ContentClient.Paginate<RecordsPaginationResponse, RecordResponse>(request);
 
         return new()
