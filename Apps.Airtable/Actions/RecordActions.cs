@@ -17,6 +17,8 @@ using Newtonsoft.Json.Linq;
 using Blackbird.Applications.Sdk.Common.Exceptions;
 using Blackbird.Applications.Sdk.Common.Dynamic;
 using Apps.Airtable.DataSourceHandlers;
+using Blackbird.Applications.SDK.Extensions.FileManagement.Interfaces;
+using ClosedXML.Excel;
 
 namespace Apps.Airtable.Actions;
 
@@ -24,13 +26,15 @@ namespace Apps.Airtable.Actions;
 public class RecordActions : AirtableInvocable
 {
     private readonly IEnumerable<AuthenticationCredentialsProvider> _credentials;
+    private readonly IFileManagementClient _fileManagementClient;
 
     private readonly JsonSerializerSettings _jsonSerializerSettings =
         new() { MissingMemberHandling = MissingMemberHandling.Ignore };
 
-    public RecordActions(InvocationContext invocationContext) : base(invocationContext)
+    public RecordActions(InvocationContext invocationContext, IFileManagementClient fileManagementClient) : base(invocationContext)
     {
         _credentials = invocationContext.AuthenticationCredentialsProviders;
+        _fileManagementClient = fileManagementClient;
     }
 
     [Action("Search records", Description = "Search all records in the table")]
@@ -46,6 +50,69 @@ public class RecordActions : AirtableInvocable
         {
             Records = records.Select(x => new RecordEntity(x))
         };
+    }
+
+    [Action("Export table as Excel file", Description = "Export table records to an Excel file.")]
+    public async Task<FileWrapper> ExportTableAsExcelFile([ActionParameter] TableIdentifier tableIdentifier,
+        [ActionParameter] string? View)
+    {
+        var table = await GetTable(tableIdentifier.TableId);
+        var request = new AirtableRequest($"/{tableIdentifier.TableId}", Method.Get, _credentials);
+
+        if (!string.IsNullOrWhiteSpace(View))
+            request.AddQueryParameter("view", View);
+
+        var records = await ContentClient.Paginate<RecordsPaginationResponse, RecordResponse>(request);
+
+        using var workbook = new XLWorkbook();
+        var sheetName = string.IsNullOrWhiteSpace(table.Name) ? "Records" : table.Name;
+        if (sheetName.Length > 31)
+            sheetName = sheetName[..31];
+
+        var worksheet = workbook.Worksheets.Add(sheetName);
+        var fieldNames = table.Fields.Select(x => x.Name).ToList();
+        var headers = new List<string> { "Record ID", "Created time" };
+        headers.AddRange(fieldNames);
+
+        for (var i = 0; i < headers.Count; i++)
+        {
+            worksheet.Cell(1, i + 1).Value = headers[i];
+        }
+
+        for (var rowIndex = 0; rowIndex < records.Count; rowIndex++)
+        {
+            var rowNumber = rowIndex + 2;
+            var record = records[rowIndex];
+
+            worksheet.Cell(rowNumber, 1).Value = record.Id;
+            worksheet.Cell(rowNumber, 2).Value = record.CreatedTime;
+            worksheet.Cell(rowNumber, 2).Style.DateFormat.Format = "yyyy-mm-dd hh:mm:ss";
+
+            for (var fieldIndex = 0; fieldIndex < fieldNames.Count; fieldIndex++)
+            {
+                var fieldName = fieldNames[fieldIndex];
+                if (record.Fields == null || !record.Fields.TryGetValue(fieldName, out var value))
+                    continue;
+
+                SetExcelCellValue(worksheet.Cell(rowNumber, fieldIndex + 3), value);
+            }
+        }
+
+        var headerRange = worksheet.Range(1, 1, 1, headers.Count);
+        headerRange.Style.Font.Bold = true;
+        headerRange.Style.Fill.BackgroundColor = XLColor.FromHtml("#D9EAF7");
+        worksheet.SheetView.FreezeRows(1);
+        worksheet.Columns().AdjustToContents();
+
+        using var stream = new MemoryStream();
+        workbook.SaveAs(stream);
+        stream.Position = 0;
+
+        var fileName = $"{SanitizeFileName(table.Name ?? string.Empty)}-{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx";
+        var file = await _fileManagementClient.UploadAsync(stream,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+
+        return new FileWrapper { File = file };
     }
 
     [Action("Find record", Description = "Find a single record in the table.")]
@@ -341,9 +408,7 @@ public class RecordActions : AirtableInvocable
 
     private async Task<FullTableDto> GetFieldTable(string tableId, string fieldId)
     {
-        var request = new AirtableRequest("/tables", Method.Get, _credentials);
-        var tables = await MetaClient.ExecuteWithErrorHandling<TableDtoWrapper<FullTableDto>>(request);
-        var table = tables.Tables.FirstOrDefault(table => table.Id == tableId || table.Name == tableId);
+        var table = await GetTable(tableId);
 
         if (table is null)
             throw new PluginMisconfigurationException(ErrorMessages.TableNotFound);
@@ -354,5 +419,90 @@ public class RecordActions : AirtableInvocable
             throw new PluginMisconfigurationException(ErrorMessages.FieldDoesNotExist);
 
         return table;
+    }
+
+    private async Task<FullTableDto> GetTable(string tableId)
+    {
+        var request = new AirtableRequest("/tables", Method.Get, _credentials);
+        var tables = await MetaClient.ExecuteWithErrorHandling<TableDtoWrapper<FullTableDto>>(request);
+        var table = tables.Tables.FirstOrDefault(x => x.Id == tableId || x.Name == tableId);
+
+        return table ?? throw new PluginMisconfigurationException(ErrorMessages.TableNotFound);
+    }
+
+    private static void SetExcelCellValue(IXLCell cell, object? value)
+    {
+        if (value is null)
+        {
+            cell.Value = string.Empty;
+            return;
+        }
+
+        switch (value)
+        {
+            case JValue jValue:
+                SetExcelCellValue(cell, jValue.Value);
+                return;
+            case JArray jArray:
+                cell.Value = string.Join(", ",
+                    jArray.Select(x => x?.ToString())
+                        .Where(x => !string.IsNullOrWhiteSpace(x)));
+                return;
+            case JObject jObject:
+                cell.Value = jObject.ToString(Formatting.None);
+                return;
+            case DateTime dateTime:
+                cell.Value = dateTime;
+                return;
+            case DateTimeOffset dateTimeOffset:
+                cell.Value = dateTimeOffset.UtcDateTime;
+                return;
+            case bool boolean:
+                cell.Value = boolean;
+                return;
+            case byte byteValue:
+                cell.Value = byteValue;
+                return;
+            case sbyte sbyteValue:
+                cell.Value = sbyteValue;
+                return;
+            case short shortValue:
+                cell.Value = shortValue;
+                return;
+            case ushort ushortValue:
+                cell.Value = ushortValue;
+                return;
+            case int intValue:
+                cell.Value = intValue;
+                return;
+            case uint uintValue:
+                cell.Value = uintValue;
+                return;
+            case long longValue:
+                cell.Value = longValue;
+                return;
+            case ulong ulongValue:
+                cell.Value = ulongValue.ToString();
+                return;
+            case float floatValue:
+                cell.Value = floatValue;
+                return;
+            case double doubleValue:
+                cell.Value = doubleValue;
+                return;
+            case decimal decimalValue:
+                cell.Value = decimalValue;
+                return;
+            default:
+                cell.Value = value.ToString() ?? string.Empty;
+                return;
+        }
+    }
+
+    private static string SanitizeFileName(string fileName)
+    {
+        var invalidChars = Path.GetInvalidFileNameChars();
+        var sanitized = new string(fileName.Select(ch => invalidChars.Contains(ch) ? '_' : ch).ToArray()).Trim();
+        return string.IsNullOrWhiteSpace(sanitized) ? "airtable-export" : sanitized;
     }
 }
