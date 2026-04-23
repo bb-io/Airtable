@@ -24,16 +24,16 @@ public class AirtableClient : BlackBirdRestClient
     public async Task<List<TV>> Paginate<T, TV>(RestRequest request) where T : PaginationResponse<TV>
     {
         var baseUrl = request.Resource;
-        int? offset = 0;
+        string? offset = null;
         const int pageSize = 100;
 
         var result = new List<TV>();
 
         do
         {
-            request.Resource = baseUrl
-                .SetQueryParameter("pageSize", pageSize.ToString())
-                .SetQueryParameter("offset", offset.ToString());
+            request.Resource = baseUrl.SetQueryParameter("pageSize", pageSize.ToString());
+            if (!string.IsNullOrWhiteSpace(offset))
+                request.Resource = request.Resource.SetQueryParameter("offset", offset);
 
             var response = await ExecuteWithErrorHandling<T>(request);
 

@@ -19,6 +19,7 @@ using Blackbird.Applications.Sdk.Common.Dynamic;
 using Apps.Airtable.DataSourceHandlers;
 using Blackbird.Applications.SDK.Extensions.FileManagement.Interfaces;
 using ClosedXML.Excel;
+using System.Globalization;
 
 namespace Apps.Airtable.Actions;
 
@@ -113,6 +114,155 @@ public class RecordActions : AirtableInvocable
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
 
         return new FileWrapper { File = file };
+    }
+
+    [Action("Update table from file", Description = "Update Airtable records from an exported Excel file using a unique key field.")]
+    public async Task<UpdateTableFromFileResponse> UpdateTableFromFile([ActionParameter] UniqueFieldIdentifier identifier,
+        [ActionParameter] FileRequest file)
+    {
+        var table = await GetTable(identifier.TableId);
+        var uniqueKeyField = table.Fields.FirstOrDefault(x => x.Id == identifier.FieldId);
+
+        if (uniqueKeyField == null)
+            throw new PluginMisconfigurationException(ErrorMessages.FieldDoesNotExist);
+
+        await using var fileStream = await _fileManagementClient.DownloadAsync(file.File);
+        using var workbook = new XLWorkbook(fileStream);
+        var worksheet = workbook.Worksheet(1);
+        var usedRange = worksheet.RangeUsed();
+
+        if (usedRange == null)
+            throw new PluginMisconfigurationException("The provided Excel file is empty.");
+
+        var headerRow = usedRange.FirstRowUsed();
+        if (headerRow == null)
+            throw new PluginMisconfigurationException("The provided Excel file does not contain a header row.");
+
+        var headers = headerRow.Cells()
+            .Select((cell, index) => new
+            {
+                Index = index + 1,
+                Header = cell.GetString().Trim()
+            })
+            .Where(x => !string.IsNullOrWhiteSpace(x.Header))
+            .ToList();
+
+        var uniqueKeyHeader = uniqueKeyField.Name;
+        var uniqueKeyColumn = headers.FirstOrDefault(x => string.Equals(x.Header, uniqueKeyHeader, StringComparison.OrdinalIgnoreCase));
+
+        if (uniqueKeyColumn == null)
+            throw new PluginMisconfigurationException($"The Excel file does not contain the unique key column '{uniqueKeyHeader}'.");
+
+        var updatableFieldsByName = table.Fields
+            .Where(IsSupportedImportFieldType)
+            .ToDictionary(x => x.Name, x => x, StringComparer.OrdinalIgnoreCase);
+
+        var ignoredColumns = headers
+            .Where(x => x.Header is not "Record ID" and not "Created time" && !updatableFieldsByName.ContainsKey(x.Header))
+            .Select(x => x.Header)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var currentRecordsRequest = new AirtableRequest($"/{identifier.TableId}", Method.Get, _credentials);
+        var currentRecords = await ContentClient.Paginate<RecordsPaginationResponse, RecordResponse>(currentRecordsRequest);
+        var duplicateExistingKeys = currentRecords
+            .Select(record => new
+            {
+                Record = record,
+                Key = record.Fields != null && record.Fields.TryGetValue(uniqueKeyHeader, out var value)
+                    ? NormalizeAirtableValue(value)
+                    : null
+            })
+            .Where(x => !string.IsNullOrWhiteSpace(x.Key))
+            .GroupBy(x => x.Key!, StringComparer.OrdinalIgnoreCase)
+            .Where(x => x.Count() > 1)
+            .Select(x => x.Key)
+            .ToList();
+
+        if (duplicateExistingKeys.Any())
+            throw new PluginMisconfigurationException($"The unique key field '{uniqueKeyHeader}' contains duplicate values in Airtable.");
+
+        var recordsByUniqueKey = currentRecords
+            .Select(record => new
+            {
+                Record = record,
+                Key = record.Fields != null && record.Fields.TryGetValue(uniqueKeyHeader, out var value)
+                    ? NormalizeAirtableValue(value)
+                    : null
+            })
+            .Where(x => !string.IsNullOrWhiteSpace(x.Key))
+            .ToDictionary(x => x.Key!, x => x.Record, StringComparer.OrdinalIgnoreCase);
+
+        var rows = usedRange.RowsUsed().Skip(1).ToList();
+        var recordsToUpdate = new List<object>();
+        var skippedRows = 0;
+        var processedUniqueKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var row in rows)
+        {
+            var uniqueKeyValue = NormalizeExcelCell(row.Cell(uniqueKeyColumn.Index));
+            if (string.IsNullOrWhiteSpace(uniqueKeyValue))
+            {
+                skippedRows++;
+                continue;
+            }
+
+            if (!recordsByUniqueKey.TryGetValue(uniqueKeyValue, out var existingRecord))
+            {
+                skippedRows++;
+                continue;
+            }
+
+            if (!processedUniqueKeys.Add(uniqueKeyValue))
+                throw new PluginMisconfigurationException($"The Excel file contains duplicate values for the unique key column '{uniqueKeyHeader}'.");
+
+            var fieldsToUpdate = new Dictionary<string, object?>();
+
+            foreach (var header in headers)
+            {
+                if (header.Header is "Record ID" or "Created time")
+                    continue;
+
+                if (!updatableFieldsByName.TryGetValue(header.Header, out var field))
+                    continue;
+
+                var parsedValue = ParseExcelCell(row.Cell(header.Index), field.Type);
+                if (parsedValue.ShouldInclude)
+                    fieldsToUpdate[field.Name] = parsedValue.Value;
+            }
+
+            if (fieldsToUpdate.Count == 0)
+            {
+                skippedRows++;
+                continue;
+            }
+
+            recordsToUpdate.Add(new
+            {
+                id = existingRecord.Id,
+                fields = fieldsToUpdate
+            });
+        }
+
+        foreach (var chunk in recordsToUpdate.Chunk(10))
+        {
+            var request = new AirtableRequest($"/{identifier.TableId}", Method.Patch, _credentials);
+            request.AddJsonBody(new
+            {
+                records = chunk,
+                typecast = true,
+                returnFieldsByFieldId = false
+            });
+
+            await ContentClient.ExecuteWithErrorHandling(request);
+        }
+
+        return new UpdateTableFromFileResponse
+        {
+            UpdatedRecords = recordsToUpdate.Count,
+            SkippedRows = skippedRows,
+            IgnoredColumns = ignoredColumns
+        };
     }
 
     [Action("Find record", Description = "Find a single record in the table.")]
@@ -504,5 +654,86 @@ public class RecordActions : AirtableInvocable
         var invalidChars = Path.GetInvalidFileNameChars();
         var sanitized = new string(fileName.Select(ch => invalidChars.Contains(ch) ? '_' : ch).ToArray()).Trim();
         return string.IsNullOrWhiteSpace(sanitized) ? "airtable-export" : sanitized;
+    }
+
+    private static bool IsSupportedImportFieldType(FieldDto field)
+    {
+        return field.Type is
+            "singleLineText" or
+            "multilineText" or
+            "richText" or
+            "email" or
+            "url" or
+            "phoneNumber" or
+            "number" or
+            "percent" or
+            "currency" or
+            "rating" or
+            "checkbox" or
+            "date" or
+            "dateTime" or
+            "singleSelect";
+    }
+
+    private static string NormalizeAirtableValue(object? value)
+    {
+        if (value == null)
+            return string.Empty;
+
+        return value switch
+        {
+            JValue jValue => NormalizeAirtableValue(jValue.Value),
+            JArray jArray => string.Join(", ", jArray.Select(x => x?.ToString()).Where(x => !string.IsNullOrWhiteSpace(x))),
+            JObject jObject => jObject.ToString(Formatting.None),
+            bool boolean => boolean.ToString().ToLowerInvariant(),
+            IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture)?.Trim() ?? string.Empty,
+            _ => value.ToString()?.Trim() ?? string.Empty
+        };
+    }
+
+    private static string NormalizeExcelCell(IXLCell cell)
+    {
+        if (cell.IsEmpty())
+            return string.Empty;
+
+        return cell.DataType switch
+        {
+            XLDataType.Boolean => cell.GetBoolean().ToString().ToLowerInvariant(),
+            XLDataType.Number => cell.GetDouble().ToString(CultureInfo.InvariantCulture),
+            XLDataType.DateTime => cell.GetDateTime().ToString("o", CultureInfo.InvariantCulture),
+            XLDataType.TimeSpan => cell.GetTimeSpan().ToString("c", CultureInfo.InvariantCulture),
+            _ => cell.GetString().Trim()
+        };
+    }
+
+    private static (bool ShouldInclude, object? Value) ParseExcelCell(IXLCell cell, string fieldType)
+    {
+        if (cell.IsEmpty())
+            return (true, null);
+
+        return fieldType switch
+        {
+            "checkbox" => cell.DataType == XLDataType.Boolean
+                ? (true, cell.GetBoolean())
+                : bool.TryParse(cell.GetString(), out var boolValue)
+                    ? (true, boolValue)
+                    : (true, null),
+
+            "number" or "percent" or "currency" or "rating" => cell.DataType == XLDataType.Number
+                ? (true, cell.GetDouble())
+                : double.TryParse(cell.GetString(), NumberStyles.Any, CultureInfo.InvariantCulture, out var numberValue)
+                    ? (true, numberValue)
+                    : (true, null),
+
+            "date" => cell.DataType == XLDataType.DateTime
+                ? (true, cell.GetDateTime().ToString("yyyy-MM-dd", CultureInfo.InvariantCulture))
+                : (true, cell.GetString()),
+
+            "dateTime" => cell.DataType == XLDataType.DateTime
+                ? (true, cell.GetDateTime().ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture))
+                : (true, cell.GetString()),
+
+            _ => (true, cell.GetString())
+        };
     }
 }
