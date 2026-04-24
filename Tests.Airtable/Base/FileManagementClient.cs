@@ -44,4 +44,9 @@ public class FileManagementClient : IFileManagementClient
 
         return new FileReference { Name = fileName };
     }
+
+    public string GetOutputPath(string fileName)
+    {
+        return Path.Combine(_folderLocation, "Output", fileName);
+    }
 }
