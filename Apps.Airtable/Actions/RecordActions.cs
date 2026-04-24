@@ -54,14 +54,23 @@ public class RecordActions : AirtableInvocable
     }
 
     [Action("Export table as Excel file", Description = "Export table records to an Excel file.")]
-    public async Task<FileWrapper> ExportTableAsExcelFile([ActionParameter] TableIdentifier tableIdentifier,
-        [ActionParameter] string? View)
+    public async Task<FileWrapper> ExportTableAsExcelFile([ActionParameter] ExportTableAsExcelRequest input)
     {
-        var table = await GetTable(tableIdentifier.TableId);
-        var request = new AirtableRequest($"/{tableIdentifier.TableId}", Method.Get, _credentials);
+        var table = await GetTable(input.TableId);
+        var request = new AirtableRequest($"/{input.TableId}", Method.Get, _credentials);
 
-        if (!string.IsNullOrWhiteSpace(View))
-            request.AddQueryParameter("view", View);
+        if (!string.IsNullOrWhiteSpace(input.View))
+            request.AddQueryParameter("view", input.View);
+
+        var selectedFields = input.Fields?.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var exportedFields = selectedFields == null || selectedFields.Count == 0
+            ? table.Fields.ToList()
+            : table.Fields.Where(x => selectedFields.Contains(x.Id)).ToList();
+
+        foreach (var field in exportedFields)
+        {
+            request.AddQueryParameter("fields[]", field.Name);
+        }
 
         var records = await ContentClient.Paginate<RecordsPaginationResponse, RecordResponse>(request);
 
@@ -71,7 +80,7 @@ public class RecordActions : AirtableInvocable
             sheetName = sheetName[..31];
 
         var worksheet = workbook.Worksheets.Add(sheetName);
-        var fieldNames = table.Fields.Select(x => x.Name).ToList();
+        var fieldNames = exportedFields.Select(x => x.Name).ToList();
         var headers = new List<string> { "Record ID", "Created time" };
         headers.AddRange(fieldNames);
 

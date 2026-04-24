@@ -1,6 +1,7 @@
 ﻿using Apps.Airtable.Actions;
 using Apps.Airtable.Connections;
 using Apps.Airtable.Models.Identifiers;
+using Apps.Airtable.Models.Requests;
 using ClosedXML.Excel;
 using System;
 using System.Collections.Generic;
@@ -59,10 +60,10 @@ public class FieldTests : TestBase
     {
         var actions = new RecordActions(InvocationContext, FileManagementClient);
 
-        var response = await actions.ExportTableAsExcelFile(new TableIdentifier
+        var response = await actions.ExportTableAsExcelFile(new ExportTableAsExcelRequest
         {
             TableId = "tblcoiOOt2k67kTHF"
-        }, null);
+        });
 
         Assert.IsNotNull(response.File);
 
