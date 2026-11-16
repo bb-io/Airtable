@@ -20,6 +20,7 @@ using Apps.Airtable.DataSourceHandlers;
 using Blackbird.Applications.SDK.Extensions.FileManagement.Interfaces;
 using ClosedXML.Excel;
 using System.Globalization;
+using Apps.Airtable.Constants;
 
 namespace Apps.Airtable.Actions;
 
@@ -53,7 +54,7 @@ public class RecordActions : AirtableInvocable
         };
     }
 
-    [Action("Export table as Excel file", Description = "Export table records to an Excel file.")]
+    [Action("Export table as file", Description = "Export table records to an Excel or JSON file. Defaults to Excel.")]
     public async Task<FileWrapper> ExportTableAsExcelFile([ActionParameter] ExportTableAsExcelRequest input)
     {
         var table = await GetTable(input.TableId);
@@ -74,6 +75,22 @@ public class RecordActions : AirtableInvocable
 
         var records = await ContentClient.Paginate<RecordsPaginationResponse, RecordResponse>(request);
 
+        if (string.IsNullOrWhiteSpace(input.Format) ||
+            string.Equals(input.Format, ExportFormats.Excel, StringComparison.OrdinalIgnoreCase))
+        {
+            return await ExportRecordsAsExcel(table, exportedFields, records);
+        }
+
+        if (string.Equals(input.Format, ExportFormats.Json, StringComparison.OrdinalIgnoreCase))
+            return await ExportRecordsAsJson(table, records);
+
+        throw new PluginMisconfigurationException(
+            $"Unsupported export format '{input.Format}'. Supported formats are Excel and JSON.");
+    }
+
+    private async Task<FileWrapper> ExportRecordsAsExcel(FullTableDto table, IReadOnlyList<FieldDto> exportedFields,
+        IReadOnlyList<RecordResponse> records)
+    {
         using var workbook = new XLWorkbook();
         var sheetName = string.IsNullOrWhiteSpace(table.Name) ? "Records" : table.Name;
         if (sheetName.Length > 31)
@@ -121,6 +138,26 @@ public class RecordActions : AirtableInvocable
         var fileName = $"{SanitizeFileName(table.Name ?? string.Empty)}-{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx";
         var file = await _fileManagementClient.UploadAsync(stream,
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+
+        return new FileWrapper { File = file };
+    }
+
+    private async Task<FileWrapper> ExportRecordsAsJson(FullTableDto table, IReadOnlyList<RecordResponse> records)
+    {
+        var payload = new
+        {
+            records = records.Select(record => new
+            {
+                id = record.Id,
+                createdTime = record.CreatedTime,
+                fields = record.Fields
+            })
+        };
+
+        var json = JsonConvert.SerializeObject(payload, Formatting.Indented);
+        await using var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
+        var fileName = $"{SanitizeFileName(table.Name ?? string.Empty)}-{DateTime.UtcNow:yyyyMMddHHmmss}.json";
+        var file = await _fileManagementClient.UploadAsync(stream, "application/json", fileName);
 
         return new FileWrapper { File = file };
     }
