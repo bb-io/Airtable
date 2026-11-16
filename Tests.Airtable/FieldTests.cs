@@ -2,7 +2,9 @@
 using Apps.Airtable.Connections;
 using Apps.Airtable.Models.Identifiers;
 using Apps.Airtable.Models.Requests;
+using Apps.Airtable.Constants;
 using ClosedXML.Excel;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -76,5 +78,33 @@ public class FieldTests : TestBase
         Assert.AreEqual("Record ID", worksheet.Cell(1, 1).GetString());
         Assert.AreEqual("Created time", worksheet.Cell(1, 2).GetString());
         Assert.IsTrue(worksheet.LastRowUsed()!.RowNumber() >= 1);
+    }
+
+    [TestMethod]
+    public async Task Export_table_as_json_file()
+    {
+        var actions = new RecordActions(InvocationContext, FileManagementClient);
+
+        var response = await actions.ExportTableAsExcelFile(new ExportTableAsExcelRequest
+        {
+            TableId = "tblcoiOOt2k67kTHF",
+            Format = ExportFormats.Json
+        });
+
+        Assert.IsNotNull(response.File);
+        Assert.IsTrue(response.File.Name.EndsWith(".json", StringComparison.OrdinalIgnoreCase));
+
+        var outputPath = FileManagementClient.GetOutputPath(response.File.Name);
+        Assert.IsTrue(File.Exists(outputPath));
+
+        var json = await File.ReadAllTextAsync(outputPath);
+        var payload = JObject.Parse(json);
+        var records = payload["records"] as JArray;
+
+        Assert.IsNotNull(records);
+        Assert.IsTrue(records.Count > 0);
+        Assert.IsNotNull(records[0]?["id"]);
+        Assert.IsNotNull(records[0]?["createdTime"]);
+        Assert.IsNotNull(records[0]?["fields"]);
     }
 }
